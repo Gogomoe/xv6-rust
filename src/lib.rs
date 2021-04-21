@@ -9,10 +9,10 @@ global_asm!(include_str!("asm/trampoline.S"));
 mod print;
 
 mod riscv;
-mod uart;
 mod console;
 mod start;
 
+#[allow(unused_variables)]
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     loop {}

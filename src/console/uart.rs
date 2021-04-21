@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use core::ptr;
 
 const UART0: usize = 0x10000000;
@@ -18,13 +20,13 @@ const LSR: usize = 5;                 /* line status register */
 const LSR_RX_READY: u8 = 1 << 0;   /* input is waiting to be read from RHR */
 const LSR_TX_IDLE: u8 = 1 << 5;    /* THR can accept another character to send */
 
-macro_rules! ReadReg {
+macro_rules! read_reg {
     ($reg: expr) => {
         unsafe { ptr::read_volatile((UART0 + $reg) as *const u8) }
     };
 }
 
-macro_rules! WriteReg {
+macro_rules! write_reg {
     ($reg: expr, $value: expr) => {
         unsafe {
             ptr::write_volatile((UART0 + $reg) as *mut u8, $value);
@@ -34,29 +36,29 @@ macro_rules! WriteReg {
 
 pub fn uart_init() {
     // disable interrupts.
-    WriteReg!(IER, 0x00);
+    write_reg!(IER, 0x00);
 
     // special mode to set baud rate.
-    WriteReg!(LCR, LCR_BAUD_LATCH);
+    write_reg!(LCR, LCR_BAUD_LATCH);
 
     // LSB for baud rate of 38.4K.
-    WriteReg!(0, 0x03);
+    write_reg!(0, 0x03);
 
     // MSB for baud rate of 38.4K.
-    WriteReg!(1, 0x00);
+    write_reg!(1, 0x00);
 
     // leave set-baud mode,
     // and set word length to 8 bits, no parity.
-    WriteReg!(LCR, LCR_EIGHT_BITS);
+    write_reg!(LCR, LCR_EIGHT_BITS);
 
     // reset and enable FIFOs.
-    WriteReg!(FCR, FCR_FIFO_ENABLE | FCR_FIFO_CLEAR);
+    write_reg!(FCR, FCR_FIFO_ENABLE | FCR_FIFO_CLEAR);
 
     // enable transmit and receive interrupts.
-    WriteReg!(IER, IER_TX_ENABLE | IER_RX_ENABLE);
+    write_reg!(IER, IER_TX_ENABLE | IER_RX_ENABLE);
 }
 
 pub fn uart_put_char_sync(c: u8) {
-    while (ReadReg!(LSR) & LSR_TX_IDLE) == 0 {}
-    WriteReg!(THR, c);
+    while (read_reg!(LSR) & LSR_TX_IDLE) == 0 {}
+    write_reg!(THR, c);
 }

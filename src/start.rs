@@ -1,22 +1,6 @@
 #[no_mangle]
 pub unsafe fn start() -> ! {
-    use crate::riscv::{
-        read_mstatus,
-        write_mstatus,
-        write_mepc,
-        write_satp,
-        write_medeleg,
-        write_mideleg,
-        read_sie,
-        write_sie,
-        read_mhartid,
-        write_tp,
-        MSTATUS_MPP_MASK,
-        MSTATUS_MPP_S,
-        SIE_SEIE,
-        SIE_STIE,
-        SIE_SSIE,
-    };
+    use crate::riscv::*;
     // set M Previous Privilege mode to Supervisor, for mret.
     let mut x = read_mstatus();
     x &= !MSTATUS_MPP_MASK;
@@ -51,12 +35,9 @@ pub unsafe fn start() -> ! {
 pub unsafe fn timer_init() {}
 
 pub unsafe fn main() -> ! {
-    use crate::riscv::{
-        read_tp
-    };
-    let cpuid = read_tp();
-    if (cpuid == 0) {
-        crate::uart::uart_init();
+    let cpuid = crate::riscv::read_tp();
+    if cpuid == 0 {
+        crate::console::uart::uart_init();
         println!("xv6 kernel is booting");
     }
 

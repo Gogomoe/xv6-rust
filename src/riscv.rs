@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub unsafe fn read_mhartid() -> usize {
     let mut x: usize;
     llvm_asm!("csrr $0, mhartid":"=r"(x):::"volatile");
