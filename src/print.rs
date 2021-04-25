@@ -1,5 +1,7 @@
 use core::fmt;
+use spin::Mutex;
 use crate::console;
+use core::fmt::Write;
 
 struct ConsolePrinter {}
 
@@ -18,13 +20,11 @@ impl fmt::Write for ConsolePrinter {
     }
 }
 
-static mut PRINTER: ConsolePrinter = ConsolePrinter {};
+static PRINTER: Mutex<ConsolePrinter> = Mutex::new(ConsolePrinter {});
 
 pub fn _print(args: fmt::Arguments<'_>) {
     use core::fmt::Write;
-    unsafe {
-        PRINTER.write_fmt(args).expect("_print: error");
-    }
+    PRINTER.lock().write_fmt(args).expect("_print: error");
 }
 
 #[macro_export]
