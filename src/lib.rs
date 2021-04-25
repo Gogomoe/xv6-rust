@@ -11,9 +11,3 @@ mod print;
 mod riscv;
 mod console;
 mod start;
-
-#[allow(unused_variables)]
-#[panic_handler]
-fn panic(info: &core::panic::PanicInfo) -> ! {
-    loop {}
-}

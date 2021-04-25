@@ -1,7 +1,9 @@
 use core::fmt;
-use spin::Mutex;
-use crate::console;
 use core::fmt::Write;
+
+use spin::Mutex;
+
+use crate::console;
 
 struct ConsolePrinter {}
 
@@ -45,4 +47,10 @@ macro_rules! println {
 	($fmt:expr, $($args:tt)+) => ({
 		print!(concat!($fmt, "\n"), $($args)+)
 	});
+}
+
+#[panic_handler]
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    println!("{}", info);
+    loop {}
 }
