@@ -39,6 +39,7 @@ pub unsafe fn main() -> ! {
     if cpuid == 0 {
         crate::console::uart::uart_init();
         println!("xv6 kernel is booting");
+        crate::memory::kernel_alloc::kernel_init();
     }
 
     loop {}

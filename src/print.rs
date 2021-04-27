@@ -48,6 +48,15 @@ macro_rules! println {
 	});
 }
 
+#[macro_export]
+macro_rules! assert {
+    ($cond:expr) => {
+        if (!$cond) {
+            panic!(concat!("assert(", stringify!($cond), ")"))
+        }
+    };
+}
+
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{}", info);

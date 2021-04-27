@@ -11,3 +11,4 @@ mod print;
 mod riscv;
 mod console;
 mod start;
+mod memory;
