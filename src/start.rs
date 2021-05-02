@@ -43,6 +43,9 @@ pub unsafe fn main() -> ! {
         println!("xv6 kernel is booting");
         PHYSICAL_MEMORY.init();
         crate::memory::virtual_memory::virtual_memory_init();
+        crate::memory::kernel_virtual_memory::kernel_page_table_init();
+
+        println!("xv6 kernel boots successfully");
     }
 
     loop {}
