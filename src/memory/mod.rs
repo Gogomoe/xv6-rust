@@ -1,6 +1,7 @@
-pub use page_table::PageEntry;
-pub use page_table::PageTable;
+pub use physical_memory::Frame;
 pub use physical_memory::PHYSICAL_MEMORY;
+pub use virtual_memory::ActivePageTable;
+pub use virtual_memory::Page;
 
 pub mod layout;
 pub mod physical_memory;

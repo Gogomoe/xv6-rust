@@ -1,4 +1,4 @@
-use crate::memory::{PageEntry, PageTable, PHYSICAL_MEMORY};
+use crate::memory::PHYSICAL_MEMORY;
 
 #[no_mangle]
 pub unsafe fn start() -> ! {

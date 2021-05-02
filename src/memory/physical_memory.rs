@@ -22,6 +22,20 @@ struct FreeMemory {
 
 unsafe impl Send for FreeMemory {}
 
+pub struct Frame {
+    number: usize,
+}
+
+impl Frame {
+    pub fn from_physical_address(address: usize) -> Frame {
+        Frame { number: address >> 12 }
+    }
+
+    pub fn addr(&self) -> usize {
+        self.number << 12
+    }
+}
+
 pub struct PhysicalMemory {
     start: usize,
     end: usize,
@@ -29,7 +43,7 @@ pub struct PhysicalMemory {
 }
 
 lazy_static! {
-    pub static ref PHYSICAL_MEMORY: PhysicalMemory =  {
+    pub static ref PHYSICAL_MEMORY: PhysicalMemory = {
         let phy_end = end as usize;
         let start = page_round_up(phy_end);
         let end = PHY_STOP;
@@ -76,13 +90,13 @@ impl PhysicalMemory {
         }
     }
 
-    pub fn alloc(&self) -> usize {
+    pub fn alloc(&self) -> Option<Frame> {
         let mut lock = self.memory.lock();
         let mut free = &mut *lock;
 
         let addr = free.head;
         if addr.is_null() {
-            return 0;
+            return None;
         }
 
         unsafe {
@@ -90,6 +104,10 @@ impl PhysicalMemory {
             // memset(addr as usize, 5, PAGE_SIZE);
         }
 
-        return addr as usize;
+        return Some(Frame::from_physical_address(addr as usize));
+    }
+
+    pub fn dealloc(&self, frame: Frame) {
+        self.free(frame.addr());
     }
 }

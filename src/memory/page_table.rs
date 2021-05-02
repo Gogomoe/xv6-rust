@@ -1,7 +1,7 @@
 use core::marker::PhantomData;
 use core::ops::{Index, IndexMut};
 
-use crate::memory::PAGE_SIZE;
+use crate::memory::{Frame, PHYSICAL_MEMORY};
 
 const ENTRY_COUNT: usize = 512;
 
@@ -22,20 +22,27 @@ pub struct PageEntry(u64);
 
 impl PageEntry {
     pub fn flags(&self) -> PageEntryFlags {
-        PageEntryFlags::from_bits(self.0).unwrap()
+        PageEntryFlags::from_bits_truncate(self.0)
     }
 
-    pub fn pointed_addr(&self) -> Option<usize> {
+    pub fn pointed_frame(&self) -> Option<Frame> {
         if self.flags().contains(PageEntryFlags::VALID) {
-            Some((self.0 as usize >> 12) << 10)
+            Some(Frame::from_physical_address((self.0 as usize >> 10) << 12))
         } else {
             None
         }
     }
 
-    pub fn set(&mut self, addr: usize, flags: PageEntryFlags) {
-        assert_eq!(addr % PAGE_SIZE, 0);
-        self.0 = ((addr >> 12) << 10) as u64 | flags.bits();
+    pub fn set(&mut self, frame: Frame, flags: PageEntryFlags) {
+        self.0 = ((frame.addr() >> 12) << 10) as u64 | flags.bits();
+    }
+
+    pub fn is_unused(&self) -> bool {
+        self.0 == 0
+    }
+
+    pub fn set_unused(&mut self) {
+        self.0 = 0;
     }
 }
 
@@ -85,8 +92,15 @@ impl<L: PageTableLevel> IndexMut<usize> for PageTable<L> {
     }
 }
 
-impl<L> PageTable<L> where L: HierarchicalLevel
-{
+impl<L: PageTableLevel> PageTable<L> {
+    pub fn zero(&mut self) {
+        for entry in self.entries.iter_mut() {
+            entry.set_unused();
+        }
+    }
+}
+
+impl<L: HierarchicalLevel> PageTable<L> {
     pub fn next_table(&self, index: usize) -> Option<&PageTable<L::NextLevel>> {
         self.next_table_address(index)
             .map(|addr| unsafe { &*(addr as *const _) })
@@ -100,9 +114,20 @@ impl<L> PageTable<L> where L: HierarchicalLevel
     fn next_table_address(&self, index: usize) -> Option<usize> {
         let flags = self[index].flags();
         if flags.contains(PageEntryFlags::VALID) {
-            self[index].pointed_addr()
+            self[index].pointed_frame().map(|it| it.addr())
         } else {
             None
         }
+    }
+
+    pub fn next_table_or_create(&mut self, index: usize) -> Option<&mut PageTable<L::NextLevel>> {
+        if self.next_table(index).is_none() {
+            let frame = PHYSICAL_MEMORY.alloc();
+            if frame.is_some() {
+                self.entries[index].set(frame.unwrap(), PageEntryFlags::VALID);
+                self.next_table_mut(index).unwrap().zero();
+            }
+        }
+        self.next_table_mut(index)
     }
 }
