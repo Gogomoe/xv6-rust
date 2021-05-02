@@ -63,7 +63,7 @@ impl PhysicalMemory {
     pub fn free(&self, addr: usize) {
         assert!(addr % PAGE_SIZE == 0 && addr >= self.start && addr < self.end);
 
-        // TODO fill junk
+        unsafe { memset(addr, 1, PAGE_SIZE); }
 
         unsafe {
             let page = addr as *mut FreePage;
@@ -74,5 +74,22 @@ impl PhysicalMemory {
             (*page).next = next_page;
             free.head = page
         }
+    }
+
+    pub fn alloc(&self) -> usize {
+        let mut lock = self.memory.lock();
+        let mut free = &mut *lock;
+
+        let addr = free.head;
+        if addr.is_null() {
+            return 0;
+        }
+
+        unsafe {
+            free.head = (*addr).next;
+            memset(addr as usize, 5, PAGE_SIZE);
+        }
+
+        return addr as usize;
     }
 }
