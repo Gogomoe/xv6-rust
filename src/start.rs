@@ -1,4 +1,4 @@
-use crate::memory::PHYSICAL_MEMORY;
+use crate::memory::{PageEntry, PageTable, PHYSICAL_MEMORY};
 
 #[no_mangle]
 pub unsafe fn start() -> ! {
@@ -42,6 +42,7 @@ pub unsafe fn main() -> ! {
         crate::console::uart::uart_init();
         println!("xv6 kernel is booting");
         PHYSICAL_MEMORY.init();
+        crate::memory::virtual_memory::virtual_memory_init();
     }
 
     loop {}

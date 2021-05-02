@@ -1,9 +1,16 @@
-pub mod layout;
-pub mod physical_memory;
-
+pub use page_table::PageEntry;
+pub use page_table::PageTable;
 pub use physical_memory::PHYSICAL_MEMORY;
 
+pub mod layout;
+pub mod physical_memory;
+pub mod virtual_memory;
+pub mod page_table;
+
 pub const PAGE_SIZE: usize = 4096;
+
+pub type PhysicalAddress = usize;
+pub type VirtualAddress = usize;
 
 pub fn page_round_up(addr: usize) -> usize {
     (addr + PAGE_SIZE - 1) & (!(PAGE_SIZE - 1))
