@@ -54,6 +54,10 @@ impl ActivePageTable {
         unsafe { &mut *self.p3 }
     }
 
+    pub fn addr(&self) -> usize {
+        self.p3 as usize
+    }
+
     pub fn translate(&self, virtual_address: VirtualAddress) -> Option<PhysicalAddress> {
         self.translate_page(&Page::from_virtual_address(virtual_address))
     }

@@ -1,3 +1,5 @@
+use core::sync::atomic::{AtomicBool, Ordering};
+
 use crate::memory::PHYSICAL_MEMORY;
 
 #[no_mangle]
@@ -37,6 +39,8 @@ pub unsafe fn start() -> ! {
 pub unsafe fn timer_init() {}
 
 pub unsafe fn main() -> ! {
+    static STARTED: AtomicBool = AtomicBool::new(false);
+
     let cpuid = crate::riscv::read_tp();
     if cpuid == 0 {
         crate::console::uart::uart_init();
@@ -44,8 +48,16 @@ pub unsafe fn main() -> ! {
         PHYSICAL_MEMORY.init();
         crate::memory::virtual_memory::virtual_memory_init();
         crate::memory::kernel_virtual_memory::kernel_page_table_init();
+        crate::memory::kernel_virtual_memory::hart_init(); // turn on paging
 
+        STARTED.store(true, Ordering::SeqCst);
         println!("xv6 kernel boots successfully");
+
+    } else {
+        while !STARTED.load(Ordering::SeqCst) {}
+
+        println!("hart {} starting", cpuid);
+        crate::memory::kernel_virtual_memory::hart_init(); // turn on paging
     }
 
     loop {}

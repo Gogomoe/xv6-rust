@@ -60,3 +60,7 @@ pub unsafe fn read_tp() -> usize {
 pub unsafe fn write_tp(x: usize) {
     llvm_asm!("mv tp, $0"::"r"(x)::"volatile");
 }
+
+pub unsafe fn sfence_vma() {
+    llvm_asm!("sfence.vma zero, zero"::::"volatile");
+}

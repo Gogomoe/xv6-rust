@@ -3,6 +3,7 @@ use lazy_static::lazy_static;
 use crate::memory::{ActivePageTable, Frame, Page, page_round_down, PAGE_SIZE};
 use crate::memory::layout::{CLINT, KERNEL_BASE, PHY_STOP, PLIC, TRAMPOLINE, UART0, VIRTIO0};
 use crate::memory::page_table::PageEntryFlags;
+use crate::riscv::{sfence_vma, write_satp};
 
 extern {
     fn etext();
@@ -64,4 +65,15 @@ pub fn kernel_page_table_init() {
     assert!(KERNEL_PAGETABLE.translate(KERNEL_BASE).is_some());
     assert!(KERNEL_PAGETABLE.translate(etext).is_some());
     assert!(KERNEL_PAGETABLE.translate(TRAMPOLINE).is_some());
+}
+
+pub fn hart_init() {
+    const SATP_SV39: usize = 8 << 60;
+    fn make_satp(page_table: &ActivePageTable) -> usize {
+        SATP_SV39 | (page_table.addr() >> 12)
+    }
+    unsafe {
+        write_satp(make_satp(&KERNEL_PAGETABLE));
+        sfence_vma();
+    }
 }
