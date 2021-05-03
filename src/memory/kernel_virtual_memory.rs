@@ -1,7 +1,7 @@
 use lazy_static::lazy_static;
 
-use crate::memory::{ActivePageTable, Frame, Page, page_round_down, PAGE_SIZE};
-use crate::memory::layout::{CLINT, KERNEL_BASE, PHY_STOP, PLIC, TRAMPOLINE, UART0, VIRTIO0};
+use crate::memory::{ActivePageTable, Frame, Page, page_round_down, PAGE_SIZE, PHYSICAL_MEMORY};
+use crate::memory::layout::{CLINT, KERNEL_BASE, KERNEL_HEAP_SIZE, KERNEL_HEAP_START, PHY_STOP, PLIC, TRAMPOLINE, UART0, VIRTIO0};
 use crate::memory::page_table::PageEntryFlags;
 use crate::riscv::{sfence_vma, write_satp};
 
@@ -32,6 +32,8 @@ lazy_static! {
         page_table.map_pages(etext, etext , PHY_STOP - etext, rw);
         page_table.map_pages(TRAMPOLINE, trampoline , PAGE_SIZE, rx);
 
+        page_table.alloc_pages(KERNEL_HEAP_START, KERNEL_HEAP_SIZE, rw);
+
         page_table
     };
 }
@@ -52,6 +54,23 @@ impl ActivePageTable {
 
             v_addr += PAGE_SIZE;
             p_addr += PAGE_SIZE;
+        }
+    }
+
+    fn alloc_pages(&mut self, virtual_memory: usize, size: usize, perm: PageEntryFlags) {
+        let mut v_addr = page_round_down(virtual_memory);
+        let v_last = page_round_down(virtual_memory + size - 1) + PAGE_SIZE;
+
+        while v_addr < v_last {
+            let frame = PHYSICAL_MEMORY.alloc().unwrap();
+            let result = self.map(
+                Page::from_virtual_address(v_addr),
+                frame,
+                perm,
+            );
+            assert!(result);
+
+            v_addr += PAGE_SIZE;
         }
     }
 }

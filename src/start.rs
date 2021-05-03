@@ -49,10 +49,10 @@ pub unsafe fn main() -> ! {
         crate::memory::virtual_memory::virtual_memory_init();
         crate::memory::kernel_virtual_memory::kernel_page_table_init();
         crate::memory::kernel_virtual_memory::hart_init(); // turn on paging
+        crate::memory::kernel_heap::kernel_heap_init();
 
         STARTED.store(true, Ordering::SeqCst);
         println!("xv6 kernel boots successfully");
-
     } else {
         while !STARTED.load(Ordering::SeqCst) {}
 
