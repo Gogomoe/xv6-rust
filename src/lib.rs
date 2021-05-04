@@ -11,6 +11,7 @@ extern crate bitflags;
 extern crate linked_list_allocator;
 
 global_asm!(include_str!("asm/entry.S"));
+global_asm!(include_str!("asm/kernelvec.S"));
 global_asm!(include_str!("asm/trampoline.S"));
 
 #[macro_use]
@@ -22,3 +23,4 @@ mod start;
 mod memory;
 mod process;
 mod param;
+mod trap;
