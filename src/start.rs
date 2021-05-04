@@ -93,7 +93,9 @@ pub unsafe fn main() -> ! {
         crate::memory::kernel_virtual_memory::hart_init(); // turn on paging
         crate::memory::kernel_heap::kernel_heap_init();
         PROCESS_MANAGER.lock().init();
-        crate::trap::hard_init();
+        crate::trap::trap_hart_init();
+        crate::plic::plic_init();
+        crate::plic::plic_hart_init();
 
         STARTED.store(true, Ordering::SeqCst);
         println!("xv6 kernel boots successfully");

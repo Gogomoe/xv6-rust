@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 
 use core::ptr;
+use core::iter::repeat;
+use crate::console::console_intr;
+use spin::Mutex;
 
 const UART0: usize = 0x10000000;
 
@@ -19,6 +22,12 @@ const LCR_BAUD_LATCH: u8 = 1 << 7; /* special mode to set baud rate */
 const LSR: usize = 5;                 /* line status register */
 const LSR_RX_READY: u8 = 1 << 0;   /* input is waiting to be read from RHR */
 const LSR_TX_IDLE: u8 = 1 << 5;    /* THR can accept another character to send */
+
+static UART_LOCK: Mutex<()> = Mutex::new(());
+const UART_TX_BUF_SIZE: usize = 32;
+const UART_TX_BUF: [u8; UART_TX_BUF_SIZE] = [0; UART_TX_BUF_SIZE];
+static mut UART_TX_W: usize = 0; /* write next to uart_tx_buf[uart_tx_w++] */
+static mut UART_TX_R: usize = 0; /* read next from uart_tx_buf[uar_tx_r++] */
 
 macro_rules! read_reg {
     ($reg: expr) => {
@@ -58,7 +67,66 @@ pub fn uart_init() {
     write_reg!(IER, IER_TX_ENABLE | IER_RX_ENABLE);
 }
 
+// alternate version of uartputc() that doesn't
+// use interrupts, for use by kernel printf() and
+// to echo characters. it spins waiting for the uart's
+// output register to be empty.
 pub fn uart_put_char_sync(c: u8) {
     while (read_reg!(LSR) & LSR_TX_IDLE) == 0 {}
     write_reg!(THR, c);
+}
+
+// if the UART is idle, and a character is waiting
+// in the transmit buffer, send it.
+// caller must hold uart_tx_lock.
+// called from both the top- and bottom-half.
+pub unsafe fn uart_start() {
+    loop {
+        if UART_TX_W == UART_TX_R {
+            // transmit buffer is empty.
+            return;
+        }
+
+        if (read_reg!(LSR) & LSR_TX_IDLE) == 0 {
+            // the UART transmit holding register is full,
+            // so we cannot give it another byte.
+            // it will interrupt when it's ready for a new byte.
+            return;
+        }
+
+        let c = UART_TX_BUF[UART_TX_R];
+        UART_TX_R = (UART_TX_R + 1) % UART_TX_BUF_SIZE;
+
+        // maybe uartputc() is waiting for space in the buffer.
+        // TODO wakeup(&uart_tx_r);
+
+        write_reg!(THR, c);
+    }
+}
+
+// read one input character from the UART.
+// return -1 if none is waiting.
+pub fn uart_get_char() -> Option<u8> {
+    return if read_reg!(LSR) & 0x01 != 0 {
+        // input data is ready.
+        Some(read_reg!(RHR))
+    } else {
+        None
+    };
+}
+
+// handle a uart interrupt, raised because input has
+// arrived, or the uart is ready for more output, or
+// both. called from trap.c.
+pub fn uart_intr() {
+    loop {
+        let c = uart_get_char();
+        if c.is_none() { break; }
+        console_intr(c.unwrap());
+    }
+
+    UART_LOCK.lock();
+    unsafe {
+        uart_start();
+    }
 }

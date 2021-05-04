@@ -24,3 +24,4 @@ mod memory;
 mod process;
 mod param;
 mod trap;
+mod plic;

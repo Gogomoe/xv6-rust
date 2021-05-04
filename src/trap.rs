@@ -2,6 +2,9 @@ use spin::Mutex;
 
 use crate::process::cpu_id;
 use crate::riscv::{intr_get, read_scause, read_sepc, read_sip, read_sstatus, read_stval, SSTATUS_SPP, write_sepc, write_sip, write_sstatus, write_stvec};
+use crate::plic::{plic_claim, plic_complete};
+use crate::memory::layout::{UART0_IRQ, VIRTIO0_IRQ};
+use crate::console::uart::uart_intr;
 
 pub static TICKS: Mutex<usize> = Mutex::new(0);
 
@@ -9,7 +12,7 @@ extern {
     fn kernelvec();
 }
 
-pub fn hard_init() {
+pub fn trap_hart_init() {
     unsafe {
         write_stvec(kernelvec as usize);
     }
@@ -44,6 +47,7 @@ pub unsafe fn kerneltrap() {
 
 unsafe fn clock_intr() {
     *TICKS.lock() += 1;
+    // TODO wake up
 }
 
 // check if it's an external interrupt or software interrupt,
@@ -53,14 +57,28 @@ unsafe fn clock_intr() {
 // 0 if not recognized.
 unsafe fn dev_intr() -> usize {
     let scause = read_scause();
-    if scause & 0x8000000000000000 != 0 && scause & 0xff == 9 {
+    return if scause & 0x8000000000000000 != 0 && scause & 0xff == 9 {
         // this is a supervisor external interrupt, via PLIC.
 
         // irq indicates which device interrupted.
-        // TODO
-        // let irq = plic_claim();
+        let irq = plic_claim();
 
-        return 1;
+        if irq as usize == UART0_IRQ {
+            uart_intr();
+        } else if irq as usize == VIRTIO0_IRQ {
+            // virtio_disk_intr(); // TODO
+        } else if irq != 0 {
+            println!("unexpected interrupt irq={}", irq);
+        }
+
+        // the PLIC allows each device to raise at most one
+        // interrupt at a time; tell the PLIC the device is
+        // now allowed to interrupt again.
+        if irq != 0 {
+            plic_complete(irq);
+        }
+
+        1
     } else if scause == 0x8000000000000001 {
         // software interrupt from a machine-mode timer interrupt,
         // forwarded by timervec in kernelvec.S.
@@ -73,8 +91,8 @@ unsafe fn dev_intr() -> usize {
         // the SSIP bit in sip.
         write_sip(read_sip() & !2);
 
-        return 2;
+        2
     } else {
-        return 0;
-    }
+        0
+    };
 }
