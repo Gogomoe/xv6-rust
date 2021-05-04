@@ -104,6 +104,8 @@ pub unsafe fn main() -> ! {
 
         println!("hart {} starting", cpuid);
         crate::memory::kernel_virtual_memory::hart_init(); // turn on paging
+        crate::trap::trap_hart_init();
+        crate::plic::plic_hart_init();
     }
 
     loop {}

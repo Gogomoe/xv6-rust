@@ -4,6 +4,7 @@
         #
         # push all registers, call kerneltrap(), restore, return.
         #
+.section .text
 .globl kerneltrap
 .globl kernelvec
 .align 4
@@ -88,6 +89,7 @@ kernelvec:
         #
         # machine-mode timer interrupt.
         #
+.section .text
 .globl timervec
 .align 4
 timervec:
@@ -95,7 +97,7 @@ timervec:
         # scratch[0,8,16] : register save area.
         # scratch[32] : address of CLINT's MTIMECMP register.
         # scratch[40] : desired interval between interrupts.
-        
+
         csrrw a0, mscratch, a0
         sd a1, 0(a0)
         sd a2, 8(a0)
