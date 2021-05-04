@@ -2,6 +2,8 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use crate::memory::PHYSICAL_MEMORY;
 use crate::process::PROCESS_MANAGER;
+use crate::memory::layout::CLINT;
+use crate::param::MAX_CPU_NUMBER;
 
 #[no_mangle]
 pub unsafe fn start() -> ! {
@@ -37,7 +39,46 @@ pub unsafe fn start() -> ! {
     loop {}
 }
 
-pub unsafe fn timer_init() {}
+// scratch area for timer interrupt, one per CPU.
+static mut MSCRATCH0: [usize; MAX_CPU_NUMBER * 32] = [0; MAX_CPU_NUMBER * 32];
+
+// set up to receive timer interrupts in machine mode,
+// which arrive at timervec in kernelvec.S,
+// which turns them into software interrupts for
+// devintr() in trap.c.
+pub unsafe fn timer_init() {
+    extern {
+        fn timervec();
+    }
+    use crate::riscv::*;
+
+    // each CPU has a separate source of timer interrupts.
+    let id = read_mhartid();
+
+    // ask the CLINT for a timer interrupt.
+    let interval = 1000000; // cycles; about 1/10th second in qemu.
+    let clint_mtimecmp: usize = CLINT + 0x4000 + 8 * id;
+    let clint_mtime = CLINT + 0xBFF8;
+    *(clint_mtimecmp as *mut usize) = *(clint_mtime as *const usize) + interval;
+
+    // prepare information in scratch[] for timervec.
+    // scratch[0..3] : space for timervec to save registers.
+    // scratch[4] : address of CLINT MTIMECMP register.
+    // scratch[5] : desired interval (in cycles) between timer interrupts.
+    let scratch: *mut usize = &mut MSCRATCH0[32 * id] as *mut usize;
+    *scratch.offset(4) = clint_mtimecmp;
+    *scratch.offset(5) = interval;
+    write_mscratch(scratch as usize);
+
+    // set the machine-mode trap handler.
+    write_mtvec(timervec as usize);
+
+    // enable machine-mode interrupts.
+    write_mstatus(read_mstatus() | MSTATUS_MIE);
+
+    // enable machine-mode timer interrupts.
+    write_mie(read_mie() | MIE_MTIE);
+}
 
 pub unsafe fn main() -> ! {
     static STARTED: AtomicBool = AtomicBool::new(false);
