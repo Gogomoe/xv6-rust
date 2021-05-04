@@ -1,4 +1,5 @@
 use lazy_static::lazy_static;
+use spin::Mutex;
 
 use crate::memory::{ActivePageTable, Frame, Page, page_round_down, PAGE_SIZE, PHYSICAL_MEMORY};
 use crate::memory::layout::{CLINT, KERNEL_BASE, KERNEL_HEAP_SIZE, KERNEL_HEAP_START, PHY_STOP, PLIC, TRAMPOLINE, UART0, VIRTIO0};
@@ -15,7 +16,7 @@ unsafe impl Sync for ActivePageTable {}
 unsafe impl Send for ActivePageTable {}
 
 lazy_static! {
-    pub static ref KERNEL_PAGETABLE: ActivePageTable = {
+    pub static ref KERNEL_PAGETABLE: Mutex<ActivePageTable> = {
         let mut page_table = ActivePageTable::new().unwrap();
 
         let rw = PageEntryFlags::READABLE | PageEntryFlags::WRITEABLE;
@@ -34,7 +35,7 @@ lazy_static! {
 
         page_table.alloc_pages(KERNEL_HEAP_START, KERNEL_HEAP_SIZE, rw);
 
-        page_table
+        Mutex::new(page_table)
     };
 }
 
@@ -76,14 +77,16 @@ impl ActivePageTable {
 }
 
 pub fn kernel_page_table_init() {
+    let page_table = &*KERNEL_PAGETABLE.lock();
+
     let etext = etext as usize;
-    assert!(KERNEL_PAGETABLE.translate(UART0).is_some());
-    assert!(KERNEL_PAGETABLE.translate(VIRTIO0).is_some());
-    assert!(KERNEL_PAGETABLE.translate(CLINT).is_some());
-    assert!(KERNEL_PAGETABLE.translate(PLIC).is_some());
-    assert!(KERNEL_PAGETABLE.translate(KERNEL_BASE).is_some());
-    assert!(KERNEL_PAGETABLE.translate(etext).is_some());
-    assert!(KERNEL_PAGETABLE.translate(TRAMPOLINE).is_some());
+    assert!(page_table.translate(UART0).is_some());
+    assert!(page_table.translate(VIRTIO0).is_some());
+    assert!(page_table.translate(CLINT).is_some());
+    assert!(page_table.translate(PLIC).is_some());
+    assert!(page_table.translate(KERNEL_BASE).is_some());
+    assert!(page_table.translate(etext).is_some());
+    assert!(page_table.translate(TRAMPOLINE).is_some());
 }
 
 pub fn hart_init() {
@@ -92,7 +95,7 @@ pub fn hart_init() {
         SATP_SV39 | (page_table.addr() >> 12)
     }
     unsafe {
-        write_satp(make_satp(&KERNEL_PAGETABLE));
+        write_satp(make_satp(&*KERNEL_PAGETABLE.lock()));
         sfence_vma();
     }
 }

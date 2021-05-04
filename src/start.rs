@@ -1,6 +1,7 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use crate::memory::PHYSICAL_MEMORY;
+use crate::process::PROCESS_MANAGER;
 
 #[no_mangle]
 pub unsafe fn start() -> ! {
@@ -50,6 +51,7 @@ pub unsafe fn main() -> ! {
         crate::memory::kernel_virtual_memory::kernel_page_table_init();
         crate::memory::kernel_virtual_memory::hart_init(); // turn on paging
         crate::memory::kernel_heap::kernel_heap_init();
+        PROCESS_MANAGER.lock().init();
 
         STARTED.store(true, Ordering::SeqCst);
         println!("xv6 kernel boots successfully");

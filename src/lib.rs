@@ -20,3 +20,5 @@ mod riscv;
 mod console;
 mod start;
 mod memory;
+mod process;
+mod param;

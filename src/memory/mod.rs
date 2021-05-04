@@ -2,6 +2,7 @@ pub use physical_memory::Frame;
 pub use physical_memory::PHYSICAL_MEMORY;
 pub use virtual_memory::ActivePageTable;
 pub use virtual_memory::Page;
+pub use kernel_virtual_memory::KERNEL_PAGETABLE;
 
 pub mod layout;
 pub mod physical_memory;
