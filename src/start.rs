@@ -1,9 +1,9 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
-use crate::memory::PHYSICAL_MEMORY;
-use crate::process::PROCESS_MANAGER;
 use crate::memory::layout::CLINT;
+use crate::memory::PHYSICAL_MEMORY;
 use crate::param::MAX_CPU_NUMBER;
+use crate::process::PROCESS_MANAGER;
 
 #[no_mangle]
 pub unsafe fn start() -> ! {
@@ -92,7 +92,7 @@ pub unsafe fn main() -> ! {
         crate::memory::kernel_virtual_memory::kernel_page_table_init();
         crate::memory::kernel_virtual_memory::hart_init(); // turn on paging
         crate::memory::kernel_heap::kernel_heap_init();
-        PROCESS_MANAGER.lock().init();
+        PROCESS_MANAGER.init();
         crate::trap::trap_hart_init();
         crate::plic::plic_init();
         crate::plic::plic_hart_init();

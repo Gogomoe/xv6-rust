@@ -1,3 +1,5 @@
+use alloc::vec::Vec;
+
 use lazy_static::lazy_static;
 use spin::Mutex;
 
@@ -6,17 +8,16 @@ use crate::memory::layout::TRAMPOLINE;
 use crate::memory::page_table::PageEntryFlags;
 use crate::param::MAX_PROCESS_NUMBER;
 use crate::process::process::Process;
-use alloc::vec::Vec;
 
 pub struct ProcessManager {
     processes: Vec<Process>,
-    pid: usize,
+    pid: Mutex<usize>,
 }
 
 unsafe impl Send for ProcessManager {}
 
 lazy_static! {
-    pub static ref PROCESS_MANAGER: Mutex<ProcessManager> = {
+    pub static ref PROCESS_MANAGER: ProcessManager = {
         let mut processes = Vec::new();
         for _ in 0..MAX_PROCESS_NUMBER  {
             processes.push(Process::new());
@@ -24,15 +25,15 @@ lazy_static! {
 
         let manager = ProcessManager {
             processes,
-            pid: 0,
+            pid: Mutex::new(0),
         };
 
-        Mutex::new(manager)
+        manager
     };
 }
 
 impl ProcessManager {
-    pub fn init(&mut self) {
+    pub fn init(&self) {
         let mut pt_lock = KERNEL_PAGETABLE.lock();
         let page_table = &mut *pt_lock;
 
@@ -41,7 +42,7 @@ impl ProcessManager {
             let va = TRAMPOLINE - (i + 1) * 2 * PAGE_SIZE;
             let rw = PageEntryFlags::READABLE | PageEntryFlags::WRITEABLE;
             page_table.map(Page::from_virtual_address(va), pa, rw);
-            self.processes[i].data.kernel_stack = va;
+            self.processes[i].data.lock().kernel_stack = va;
         }
     }
 }

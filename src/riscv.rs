@@ -228,7 +228,7 @@ pub unsafe fn read_time() -> usize {
 
 // enable device interrupts
 #[inline]
-pub unsafe fn iter_on() {
+pub unsafe fn intr_on() {
     write_sstatus(read_sstatus() | SSTATUS_SIE);
 }
 

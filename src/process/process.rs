@@ -5,7 +5,6 @@ use alloc::string::String;
 use spin::Mutex;
 
 use crate::memory::{ActivePageTable, PHYSICAL_MEMORY};
-use core::ptr::null_mut;
 
 pub struct Context {
     ra: u64,
@@ -112,7 +111,7 @@ pub struct TrapFrame {
 pub struct ProcessData {
     pub kernel_stack: usize,
     pub size: usize,
-    pub page_table: *mut ActivePageTable,
+    pub page_table: ActivePageTable,
     pub trap_frame: *mut TrapFrame,
     pub context: Context,
     pub name: String,
@@ -120,13 +119,15 @@ pub struct ProcessData {
     // TODO, open file, current dir
 }
 
+unsafe impl Send for ProcessData {}
+
 impl ProcessData {
     pub fn new() -> ProcessData {
         ProcessData {
             kernel_stack: 0,
             size: 0,
-            page_table: null_mut(),
-            trap_frame: null_mut(),
+            page_table: ActivePageTable::new().unwrap(),
+            trap_frame: PHYSICAL_MEMORY.alloc().unwrap().addr() as *mut TrapFrame,
             context: Context::new(),
             name: String::from(""),
         }
@@ -153,14 +154,14 @@ impl ProcessInfo {
 }
 
 pub struct Process {
-    pub data: ProcessData,
+    pub data: Mutex<ProcessData>,
     pub info: Mutex<ProcessInfo>,
 }
 
 impl Process {
     pub fn new() -> Process {
         Process {
-            data: ProcessData::new(),
+            data: Mutex::new(ProcessData::new()),
             info: Mutex::new(ProcessInfo::new()),
         }
     }

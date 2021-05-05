@@ -1,9 +1,10 @@
 #![allow(dead_code)]
 
 use core::ptr;
-use core::iter::repeat;
-use crate::console::console_intr;
+
 use spin::Mutex;
+
+use crate::console::console_intr;
 
 const UART0: usize = 0x10000000;
 
@@ -80,9 +81,9 @@ pub fn uart_put_char_sync(c: u8) {
 // in the transmit buffer, send it.
 // caller must hold uart_tx_lock.
 // called from both the top- and bottom-half.
-pub unsafe fn uart_start() {
+pub fn uart_start() {
     loop {
-        if UART_TX_W == UART_TX_R {
+        if unsafe { UART_TX_W == UART_TX_R } {
             // transmit buffer is empty.
             return;
         }
@@ -94,8 +95,11 @@ pub unsafe fn uart_start() {
             return;
         }
 
-        let c = UART_TX_BUF[UART_TX_R];
-        UART_TX_R = (UART_TX_R + 1) % UART_TX_BUF_SIZE;
+        let c = unsafe { UART_TX_BUF[UART_TX_R] };
+
+        unsafe {
+            UART_TX_R = (UART_TX_R + 1) % UART_TX_BUF_SIZE;
+        }
 
         // maybe uartputc() is waiting for space in the buffer.
         // TODO wakeup(&uart_tx_r);
@@ -126,7 +130,5 @@ pub fn uart_intr() {
     }
 
     UART_LOCK.lock();
-    unsafe {
-        uart_start();
-    }
+    uart_start();
 }
