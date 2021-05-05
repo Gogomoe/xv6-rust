@@ -1,5 +1,7 @@
 use spin::Mutex;
 
+use crate::process::PROCESS_MANAGER;
+
 pub mod uart;
 
 pub fn console_put_char(c: u8) {
@@ -43,7 +45,7 @@ pub fn console_intr(char: u8) {
 
     match char {
         CTRL_P => {
-            // TODO print proc
+            PROCESS_MANAGER.print_processes();
         }
         CTRL_U => {
             while console.edit != console.write
@@ -67,7 +69,7 @@ pub fn console_intr(char: u8) {
 
                 if char == b'\n' || char == CTRL_D || console.edit == console.read + INPUT_BUFFER {
                     console.write = console.edit;
-                    // TODO wake up consoleread()
+                    PROCESS_MANAGER.wakeup(&console.read as *const _ as usize)
                 }
             }
         }

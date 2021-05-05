@@ -11,7 +11,7 @@ use crate::param::MAX_PROCESS_NUMBER;
 use crate::process::context::Context;
 use crate::process::CPU_MANAGER;
 use crate::process::process::Process;
-use crate::process::process::ProcessState::{RUNNABLE, RUNNING};
+use crate::process::process::ProcessState::{RUNNABLE, RUNNING, SLEEPING, UNUSED};
 use crate::riscv::intr_on;
 
 pub struct ProcessManager {
@@ -55,8 +55,7 @@ impl ProcessManager {
         extern {
             fn swtch(old: *mut Context, new: *mut Context);
         }
-        let mut cpu_lock = CPU_MANAGER.my_cpu().lock();
-        let cpu = &mut *cpu_lock;
+        let cpu = CPU_MANAGER.my_cpu_mut();
 
         cpu.process = null_mut();
 
@@ -81,6 +80,28 @@ impl ProcessManager {
             if !found {
                 intr_on();
                 llvm_asm!("wfi"::::"volatile");
+            }
+        }
+    }
+
+    pub fn wakeup(&self, channel: usize) {
+        for process in self.processes.iter() {
+            let mut info_lock = process.info.lock();
+            let info = &mut *info_lock;
+            if info.state == SLEEPING && info.channel == channel {
+                info.state = RUNNING;
+            }
+        }
+    }
+
+    pub fn print_processes(&self) {
+        for process in self.processes.iter() {
+            let info_lock = process.info.lock();
+            let info = &*info_lock;
+            let data_lock = process.data.lock();
+            let data = &*data_lock;
+            if info.state != UNUSED {
+                println!("{:5} {:10} {:20}", info.pid, info.state, data.name);
             }
         }
     }

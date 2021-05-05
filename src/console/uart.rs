@@ -5,6 +5,7 @@ use core::ptr;
 use spin::Mutex;
 
 use crate::console::console_intr;
+use crate::process::PROCESS_MANAGER;
 
 const UART0: usize = 0x10000000;
 
@@ -102,7 +103,9 @@ pub fn uart_start() {
         }
 
         // maybe uartputc() is waiting for space in the buffer.
-        // TODO wakeup(&uart_tx_r);
+        unsafe {
+            PROCESS_MANAGER.wakeup(&UART_TX_R as *const _ as usize);
+        }
 
         write_reg!(THR, c);
     }

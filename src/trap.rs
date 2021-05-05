@@ -1,10 +1,11 @@
 use spin::Mutex;
 
-use crate::process::cpu_id;
-use crate::riscv::{intr_get, read_scause, read_sepc, read_sip, read_sstatus, read_stval, SSTATUS_SPP, write_sepc, write_sip, write_sstatus, write_stvec};
-use crate::plic::{plic_claim, plic_complete};
-use crate::memory::layout::{UART0_IRQ, VIRTIO0_IRQ};
 use crate::console::uart::uart_intr;
+use crate::memory::layout::{UART0_IRQ, VIRTIO0_IRQ};
+use crate::plic::{plic_claim, plic_complete};
+use crate::process::{cpu_id, CPU_MANAGER, PROCESS_MANAGER};
+use crate::process::process::ProcessState::RUNNING;
+use crate::riscv::{intr_get, read_scause, read_sepc, read_sip, read_sstatus, read_stval, SSTATUS_SPP, write_sepc, write_sip, write_sstatus, write_stvec};
 
 pub static TICKS: Mutex<usize> = Mutex::new(0);
 
@@ -39,7 +40,11 @@ pub unsafe fn kerneltrap() {
         panic!("kerneltrap");
     }
 
-    // TODO yield
+    let mut cpu = CPU_MANAGER.my_cpu_mut();
+    let process = cpu.my_proc();
+    if which_dev == 2 && !process.is_null() && process.as_ref().unwrap().info.lock().state == RUNNING {
+        cpu.yield_self();
+    }
 
     write_sepc(sepc);
     write_sstatus(sstatus);
@@ -47,7 +52,7 @@ pub unsafe fn kerneltrap() {
 
 unsafe fn clock_intr() {
     *TICKS.lock() += 1;
-    // TODO wake up
+    PROCESS_MANAGER.wakeup(&TICKS as *const _ as usize)
 }
 
 // check if it's an external interrupt or software interrupt,

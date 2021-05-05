@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use alloc::string::String;
+use core::fmt;
 
 use spin::Mutex;
 
@@ -37,6 +38,12 @@ impl ProcessData {
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum ProcessState { UNUSED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE }
+
+impl fmt::Display for ProcessState {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
 
 /// public data for process, need lock
 pub struct ProcessInfo {
