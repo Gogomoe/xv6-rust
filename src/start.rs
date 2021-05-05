@@ -108,5 +108,5 @@ pub unsafe fn main() -> ! {
         crate::plic::plic_hart_init();
     }
 
-    loop {}
+    PROCESS_MANAGER.scheduler();
 }
