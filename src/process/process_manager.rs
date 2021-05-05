@@ -47,7 +47,7 @@ impl ProcessManager {
             let va = TRAMPOLINE - (i + 1) * 2 * PAGE_SIZE;
             let rw = PageEntryFlags::READABLE | PageEntryFlags::WRITEABLE;
             page_table.map(Page::from_virtual_address(va), pa, rw);
-            self.processes[i].data.lock().kernel_stack = va;
+            self.processes[i].data.borrow_mut().kernel_stack = va;
         }
     }
 
@@ -70,7 +70,7 @@ impl ProcessManager {
                     proc.state = RUNNING;
                     cpu.process = process as *const Process;
 
-                    swtch(&mut cpu.context, &mut process.data.lock().context);
+                    swtch(&mut cpu.context, &mut process.data.borrow_mut().context);
 
                     cpu.process = null_mut();
 
@@ -98,8 +98,7 @@ impl ProcessManager {
         for process in self.processes.iter() {
             let info_lock = process.info.lock();
             let info = &*info_lock;
-            let data_lock = process.data.lock();
-            let data = &*data_lock;
+            let data = process.data.borrow();
             if info.state != UNUSED {
                 println!("{:5} {:10} {:20}", info.pid, info.state, data.name);
             }

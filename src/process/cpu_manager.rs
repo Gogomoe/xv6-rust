@@ -1,8 +1,9 @@
 use alloc::vec::Vec;
+use core::cell::RefCell;
 use core::ptr::null_mut;
 
 use lazy_static::lazy_static;
-use spin::{Mutex, MutexGuard};
+use spin::MutexGuard;
 
 use crate::param::MAX_CPU_NUMBER;
 use crate::process::context::Context;
@@ -79,7 +80,7 @@ impl Cpu {
 
         let proc = proc.as_ref().unwrap();
         let old_intr = self.interrupt_enable;
-        swtch(&mut proc.data.lock().context, &mut self.context);
+        swtch(&mut proc.data.borrow_mut().context, &mut self.context);
         self.interrupt_enable = old_intr;
     }
 
@@ -116,14 +117,16 @@ impl Cpu {
 }
 
 pub struct CpuManager {
-    cpus: Vec<Cpu>,
+    cpus: Vec<RefCell<Cpu>>,
 }
+
+unsafe impl Sync for CpuManager {}
 
 lazy_static! {
     pub static ref CPU_MANAGER: CpuManager = {
         let mut cpus = Vec::new();
         for _ in 0..MAX_CPU_NUMBER  {
-            cpus.push(Cpu::new());
+            cpus.push(RefCell::new(Cpu::new()));
         }
 
         let manager = CpuManager {
@@ -137,13 +140,13 @@ lazy_static! {
 impl CpuManager {
     pub fn my_cpu(&self) -> &Cpu {
         unsafe {
-            (&self.cpus[cpu_id()] as *const _ as *const Cpu).as_ref().unwrap()
+            self.cpus[cpu_id()].as_ptr().as_ref().unwrap()
         }
     }
 
     pub fn my_cpu_mut(&self) -> &mut Cpu {
         unsafe {
-            (&self.cpus[cpu_id()] as *const _ as *mut Cpu).as_mut().unwrap()
+            self.cpus[cpu_id()].as_ptr().as_mut().unwrap()
         }
     }
 

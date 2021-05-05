@@ -8,6 +8,7 @@ use spin::Mutex;
 use crate::memory::{ActivePageTable, PHYSICAL_MEMORY};
 use crate::process::context::Context;
 use crate::process::trap_frame::TrapFrame;
+use core::cell::RefCell;
 
 /// private data for process, no lock needs
 pub struct ProcessData {
@@ -63,14 +64,16 @@ impl ProcessInfo {
 }
 
 pub struct Process {
-    pub data: Mutex<ProcessData>,
+    pub data: RefCell<ProcessData>,
     pub info: Mutex<ProcessInfo>,
 }
+
+unsafe impl Sync for Process {}
 
 impl Process {
     pub fn new() -> Process {
         Process {
-            data: Mutex::new(ProcessData::new()),
+            data: RefCell::new(ProcessData::new()),
             info: Mutex::new(ProcessInfo::new()),
         }
     }

@@ -40,7 +40,7 @@ pub unsafe fn kerneltrap() {
         panic!("kerneltrap");
     }
 
-    let mut cpu = CPU_MANAGER.my_cpu_mut();
+    let cpu = CPU_MANAGER.my_cpu_mut();
     let process = cpu.my_proc();
     if which_dev == 2 && !process.is_null() && process.as_ref().unwrap().info.lock().state == RUNNING {
         cpu.yield_self();
