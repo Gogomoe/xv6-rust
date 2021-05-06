@@ -26,3 +26,4 @@ mod process;
 mod param;
 mod trap;
 mod plic;
+mod sleep_lock;
