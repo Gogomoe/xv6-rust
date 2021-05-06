@@ -3,9 +3,12 @@
 #![feature(llvm_asm)]
 #![feature(core_intrinsics)]
 #![feature(alloc_error_handler)]
+#![feature(const_fn_union)]
 
 #[macro_use]
 extern crate alloc;
+#[macro_use]
+extern crate array_macro;
 #[macro_use]
 extern crate bitflags;
 extern crate linked_list_allocator;

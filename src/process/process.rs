@@ -1,20 +1,21 @@
 #![allow(dead_code)]
 
 use alloc::string::String;
+use core::cell::RefCell;
 use core::fmt;
 
+use bitflags::_core::ptr::null_mut;
 use spin::Mutex;
 
-use crate::memory::{ActivePageTable, PHYSICAL_MEMORY};
+use crate::memory::ActivePageTable;
 use crate::process::context::Context;
 use crate::process::trap_frame::TrapFrame;
-use core::cell::RefCell;
 
 /// private data for process, no lock needs
 pub struct ProcessData {
     pub kernel_stack: usize,
     pub size: usize,
-    pub page_table: ActivePageTable,
+    pub page_table: Option<ActivePageTable>,
     pub trap_frame: *mut TrapFrame,
     pub context: Context,
     pub name: String,
@@ -25,14 +26,14 @@ pub struct ProcessData {
 unsafe impl Send for ProcessData {}
 
 impl ProcessData {
-    pub fn new() -> ProcessData {
+    pub const fn new() -> ProcessData {
         ProcessData {
             kernel_stack: 0,
             size: 0,
-            page_table: ActivePageTable::new().unwrap(),
-            trap_frame: PHYSICAL_MEMORY.alloc().unwrap().addr() as *mut TrapFrame,
+            page_table: None,
+            trap_frame: null_mut(),
             context: Context::new(),
-            name: String::from(""),
+            name: String::new(),
         }
     }
 }
@@ -54,7 +55,7 @@ pub struct ProcessInfo {
 }
 
 impl ProcessInfo {
-    pub fn new() -> ProcessInfo {
+    pub const fn new() -> ProcessInfo {
         ProcessInfo {
             state: ProcessState::UNUSED,
             channel: 0,
@@ -71,7 +72,7 @@ pub struct Process {
 unsafe impl Sync for Process {}
 
 impl Process {
-    pub fn new() -> Process {
+    pub const fn new() -> Process {
         Process {
             data: RefCell::new(ProcessData::new()),
             info: Mutex::new(ProcessInfo::new()),

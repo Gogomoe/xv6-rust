@@ -1,8 +1,6 @@
-use alloc::vec::Vec;
 use core::cell::RefCell;
 use core::ptr::null_mut;
 
-use lazy_static::lazy_static;
 use spin::MutexGuard;
 
 use crate::param::MAX_CPU_NUMBER;
@@ -26,7 +24,7 @@ unsafe impl Send for Cpu {}
 unsafe impl Sync for Cpu {}
 
 impl Cpu {
-    pub fn new() -> Cpu {
+    pub const fn new() -> Cpu {
         Cpu {
             process: null_mut(),
             context: Context::new(),
@@ -117,27 +115,20 @@ impl Cpu {
 }
 
 pub struct CpuManager {
-    cpus: Vec<RefCell<Cpu>>,
+    cpus: [RefCell<Cpu>; MAX_CPU_NUMBER],
 }
 
 unsafe impl Sync for CpuManager {}
 
-lazy_static! {
-    pub static ref CPU_MANAGER: CpuManager = {
-        let mut cpus = Vec::new();
-        for _ in 0..MAX_CPU_NUMBER  {
-            cpus.push(RefCell::new(Cpu::new()));
-        }
-
-        let manager = CpuManager {
-            cpus,
-        };
-
-        manager
-    };
-}
+pub static CPU_MANAGER: CpuManager = CpuManager::new();
 
 impl CpuManager {
+    const fn new() -> CpuManager {
+        CpuManager {
+            cpus: array![_ => RefCell::new(Cpu::new()); MAX_CPU_NUMBER]
+        }
+    }
+
     pub fn my_cpu(&self) -> &Cpu {
         unsafe {
             self.cpus[cpu_id()].as_ptr().as_ref().unwrap()

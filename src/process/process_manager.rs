@@ -1,7 +1,5 @@
-use alloc::vec::Vec;
 use core::ptr::null_mut;
 
-use lazy_static::lazy_static;
 use spin::Mutex;
 
 use crate::memory::{KERNEL_PAGETABLE, Page, PAGE_SIZE, PHYSICAL_MEMORY};
@@ -15,29 +13,22 @@ use crate::process::process::ProcessState::{RUNNABLE, RUNNING, SLEEPING, UNUSED}
 use crate::riscv::intr_on;
 
 pub struct ProcessManager {
-    processes: Vec<Process>,
+    processes: [Process; MAX_PROCESS_NUMBER],
     pid: Mutex<usize>,
 }
 
 unsafe impl Send for ProcessManager {}
 
-lazy_static! {
-    pub static ref PROCESS_MANAGER: ProcessManager = {
-        let mut processes = Vec::new();
-        for _ in 0..MAX_PROCESS_NUMBER  {
-            processes.push(Process::new());
-        }
-
-        let manager = ProcessManager {
-            processes,
-            pid: Mutex::new(0),
-        };
-
-        manager
-    };
-}
+pub static PROCESS_MANAGER: ProcessManager = ProcessManager::new();
 
 impl ProcessManager {
+    const fn new() -> ProcessManager {
+        ProcessManager {
+            processes: array![_ => Process::new(); MAX_PROCESS_NUMBER],
+            pid: Mutex::new(0),
+        }
+    }
+
     pub fn init(&self) {
         let mut pt_lock = KERNEL_PAGETABLE.lock();
         let page_table = &mut *pt_lock;
