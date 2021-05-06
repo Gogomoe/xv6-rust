@@ -1,5 +1,6 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
+use crate::driver::DISK;
 use crate::memory::layout::CLINT;
 use crate::memory::PHYSICAL_MEMORY;
 use crate::param::MAX_CPU_NUMBER;
@@ -96,6 +97,7 @@ pub unsafe fn main() -> ! {
         crate::trap::trap_hart_init();
         crate::plic::plic_init();
         crate::plic::plic_hart_init();
+        DISK.init();
 
         STARTED.store(true, Ordering::SeqCst);
         println!("xv6 kernel boots successfully");

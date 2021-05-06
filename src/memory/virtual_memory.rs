@@ -59,7 +59,8 @@ impl ActivePageTable {
     }
 
     pub fn translate(&self, virtual_address: VirtualAddress) -> Option<PhysicalAddress> {
-        self.translate_page(&Page::from_virtual_address(virtual_address))
+        let offset = virtual_address % PAGE_SIZE;
+        self.translate_page(&Page::from_virtual_address(virtual_address)).map(|it| it + offset)
     }
 
     fn translate_page(&self, page: &Page) -> Option<PhysicalAddress> {

@@ -1,6 +1,7 @@
 use spin::Mutex;
 
 use crate::console::uart::uart_intr;
+use crate::driver::DISK;
 use crate::memory::layout::{UART0_IRQ, VIRTIO0_IRQ};
 use crate::plic::{plic_claim, plic_complete};
 use crate::process::{cpu_id, CPU_MANAGER, PROCESS_MANAGER};
@@ -71,7 +72,7 @@ unsafe fn dev_intr() -> usize {
         if irq as usize == UART0_IRQ {
             uart_intr();
         } else if irq as usize == VIRTIO0_IRQ {
-            // virtio_disk_intr(); // TODO
+            DISK.intr();
         } else if irq != 0 {
             println!("unexpected interrupt irq={}", irq);
         }
