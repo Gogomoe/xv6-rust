@@ -39,13 +39,31 @@ pub struct BufferGuard<'a> {
     data: SleepLockGuard<'a, BufferData>,
 }
 
+impl BufferGuard<'_> {
+    pub fn data(&self) -> *mut [u8; BLOCK_SIZE] {
+        self.data.as_ptr() as *const _ as *mut [u8; BLOCK_SIZE]
+    }
+
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
+    pub fn dev(&self) -> usize {
+        self.dev
+    }
+
+    pub fn block_no(&self) -> usize {
+        self.block_no
+    }
+}
+
 pub struct BlockCache {
     buffers: UnsafeCell<[Buffer; BUFFER_SIZE]>,
     lock: Mutex<()>,
     lru_release_count: AtomicUsize,
 }
 
-static BLOCK_CACHE: BlockCache = BlockCache::new();
+pub static BLOCK_CACHE: BlockCache = BlockCache::new();
 
 unsafe impl Sync for BlockCache {}
 
@@ -148,6 +166,20 @@ impl BlockCache {
             self.lru_release_count.store(used_time + 1, Ordering::Relaxed);
         }
 
+        drop(lock_guard);
+    }
+
+    pub fn pin(&self, buffer: &BufferGuard) {
+        let lock_guard = self.lock.lock();
+        let buffers = unsafe { self.buffers.get().as_mut().unwrap() };
+        buffers[buffer.index].ref_count += 1;
+        drop(lock_guard);
+    }
+
+    pub fn unpin(&self, buffer: &BufferGuard) {
+        let lock_guard = self.lock.lock();
+        let buffers = unsafe { self.buffers.get().as_mut().unwrap() };
+        buffers[buffer.index].ref_count -= 1;
         drop(lock_guard);
     }
 }
