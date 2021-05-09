@@ -1,8 +1,8 @@
+pub use kernel_virtual_memory::KERNEL_PAGETABLE;
 pub use physical_memory::Frame;
 pub use physical_memory::PHYSICAL_MEMORY;
 pub use virtual_memory::ActivePageTable;
 pub use virtual_memory::Page;
-pub use kernel_virtual_memory::KERNEL_PAGETABLE;
 
 pub mod layout;
 pub mod physical_memory;
@@ -22,12 +22,4 @@ pub fn page_round_up(addr: usize) -> usize {
 
 pub fn page_round_down(addr: usize) -> usize {
     addr & !(PAGE_SIZE - 1)
-}
-
-pub unsafe fn memset(addr: usize, data: u8, size: usize) {
-    let mut p = addr as *mut u8;
-    for _ in 0..size {
-        *p = data;
-        p = p.offset(1);
-    }
 }

@@ -1,5 +1,5 @@
 use core::intrinsics::size_of;
-use core::ptr::copy;
+use core::ptr;
 
 use spin::Mutex;
 
@@ -102,7 +102,7 @@ impl Log {
             let log_buffer = BLOCK_CACHE.read(self.dev, self.start + i + 1);
             let dest_buffer = BLOCK_CACHE.read(self.dev, self.header.block[i]);
             unsafe {
-                copy(log_buffer.data(), dest_buffer.data(), 1);
+                ptr::copy(log_buffer.data(), dest_buffer.data(), 1);
             }
             BLOCK_CACHE.write(&dest_buffer);
             if !recovering {
@@ -179,7 +179,7 @@ impl Log {
             let log_buffer = BLOCK_CACHE.read(self.dev, self.start + i + 1);
             let cache_buffer = BLOCK_CACHE.read(self.dev, self.header.block[i]);
             unsafe {
-                copy(cache_buffer.data(), log_buffer.data(), 1);
+                ptr::copy(cache_buffer.data(), log_buffer.data(), 1);
             }
             BLOCK_CACHE.write(&log_buffer);
             BLOCK_CACHE.release(cache_buffer);

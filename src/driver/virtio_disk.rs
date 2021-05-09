@@ -6,7 +6,7 @@ use core::sync::atomic::{AtomicBool, fence, Ordering};
 
 use spin::Mutex;
 
-use crate::memory::{memset, PAGE_SIZE};
+use crate::memory::PAGE_SIZE;
 use crate::memory::KERNEL_PAGETABLE;
 use crate::memory::layout::VIRTIO0;
 use crate::process::{CPU_MANAGER, PROCESS_MANAGER};
@@ -151,7 +151,7 @@ impl Disk {
             panic!("virtio disk max queue too short");
         }
         write(VIRTIO_MMIO_QUEUE_NUM, NUM as u32);
-        memset(&self.pages as *const _ as usize, 0, self.pages.len());
+        ptr::write_bytes(&mut self.pages as *mut [u8; 2 * PAGE_SIZE], 0, self.pages.len());
         write(VIRTIO_MMIO_QUEUE_PFN, u32::try_from(&self.pages as *const _ as usize >> 12).unwrap());
 
         // desc = pages -- num * VRingDesc
