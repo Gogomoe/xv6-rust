@@ -1,3 +1,4 @@
+use core::intrinsics::size_of;
 use core::ptr;
 
 pub use buffer_cache::BLOCK_CACHE;
@@ -6,13 +7,24 @@ pub use logging::LOG;
 pub mod buffer_cache;
 pub mod logging;
 pub mod inode;
+pub mod directory;
 
 pub const BLOCK_SIZE: usize = 1024;
 pub const FSMAGIC: usize = 0x10203040;
 
 pub const DIRECTORY_COUNT: usize = 12;
+pub const DIRECTORY_INNER_COUNT: usize = BLOCK_SIZE / size_of::<usize>();
+pub const MAX_FILE_COUNT: usize = DIRECTORY_COUNT + DIRECTORY_INNER_COUNT;
 
 pub const BPB: usize = BLOCK_SIZE * 8;
+
+pub const DIRECTORY_SIZE: usize = 14;
+
+#[repr(C)]
+pub struct Dirent {
+    inum: u16,
+    name: [u8; DIRECTORY_SIZE],
+}
 
 #[inline]
 fn bblock(block: usize, sb: &SuperBlock) -> usize {
