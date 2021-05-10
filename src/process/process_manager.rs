@@ -10,7 +10,7 @@ use crate::process::context::Context;
 use crate::process::CPU_MANAGER;
 use crate::process::process::Process;
 use crate::process::process::ProcessState::{RUNNABLE, RUNNING, SLEEPING, UNUSED};
-use crate::riscv::intr_on;
+use crate::riscv::{intr_on, sfence_vma};
 
 pub struct ProcessManager {
     processes: [Process; MAX_PROCESS_NUMBER],
@@ -39,6 +39,10 @@ impl ProcessManager {
             let rw = PageEntryFlags::READABLE | PageEntryFlags::WRITEABLE;
             page_table.map(Page::from_virtual_address(va), pa, rw);
             self.processes[i].data.borrow_mut().kernel_stack = va;
+        }
+
+        unsafe {
+            sfence_vma();
         }
     }
 
