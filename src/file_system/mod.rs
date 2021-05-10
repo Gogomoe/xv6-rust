@@ -5,9 +5,12 @@ pub use logging::LOG;
 
 pub mod buffer_cache;
 pub mod logging;
+pub mod inode;
 
 pub const BLOCK_SIZE: usize = 1024;
 pub const FSMAGIC: usize = 0x10203040;
+
+pub const DIRECTORY_COUNT: usize = 12;
 
 pub const BPB: usize = BLOCK_SIZE * 8;
 
