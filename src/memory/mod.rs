@@ -36,7 +36,7 @@ pub fn either_copy_out(user_dst: bool, dst: usize, src: usize, len: usize) -> bo
     let proc = CPU_MANAGER.my_proc();
     let proc = unsafe { proc.as_ref().unwrap() };
     return if user_dst {
-        let data = (*proc).data.borrow();
+        let data = unsafe { proc.data.get().as_ref() }.unwrap();
         let pt = data.page_table.as_ref().unwrap();
         unsafe {
             copy_out(pt, dst, src, len)
@@ -56,7 +56,7 @@ pub fn either_copy_in(user_src: bool, dst: usize, src: usize, len: usize) -> boo
     let proc = CPU_MANAGER.my_proc();
     let proc = unsafe { proc.as_ref().unwrap() };
     return if user_src {
-        let data = (*proc).data.borrow();
+        let data = unsafe { proc.data.get().as_ref() }.unwrap();
         let pt = data.page_table.as_ref().unwrap();
         unsafe {
             copy_in(pt, dst, src, len)

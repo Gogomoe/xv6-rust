@@ -42,7 +42,9 @@ impl ProcessManager {
             let va = TRAMPOLINE - (i + 1) * 2 * PAGE_SIZE;
             let rw = PageEntryFlags::READABLE | PageEntryFlags::WRITEABLE;
             page_table.map(Page::from_virtual_address(va), pa, rw);
-            self.processes[i].data.borrow_mut().kernel_stack = va;
+
+            let process = unsafe { self.processes[i].data.get().as_mut() }.unwrap();
+            process.kernel_stack = va;
         }
 
         unsafe {
@@ -69,7 +71,8 @@ impl ProcessManager {
                     proc.state = RUNNING;
                     cpu.process = process as *const Process;
 
-                    swtch(&mut cpu.context, &mut process.data.borrow_mut().context);
+                    let data = unsafe { process.data.get().as_mut() }.unwrap();
+                    swtch(&mut cpu.context, &mut data.context);
 
                     cpu.process = null_mut();
 
@@ -97,7 +100,7 @@ impl ProcessManager {
         for process in self.processes.iter() {
             let info_lock = process.info.lock();
             let info = &*info_lock;
-            let data = process.data.borrow();
+            let data = unsafe { process.data.get().as_ref() }.unwrap();
             if info.state != UNUSED {
                 println!("{:5} {:10} {:20}", info.pid, info.state, data.name);
             }
@@ -107,8 +110,7 @@ impl ProcessManager {
     pub unsafe fn user_init(&self) {
         let process = self.alloc_process().unwrap();
 
-        let mut data_guard = process.data.borrow_mut();
-        let data = &mut *data_guard;
+        let mut data = unsafe { process.data.get().as_mut() }.unwrap();
         let mut info_guard = process.info.lock();
         let info = &mut info_guard;
 
@@ -132,7 +134,7 @@ impl ProcessManager {
             let mut guard = process.info.lock();
             let info = &mut *guard;
             if info.state == UNUSED {
-                let mut data = &mut *process.data.borrow_mut();
+                let mut data = unsafe { process.data.get().as_mut() }.unwrap();
 
                 info.pid = self.alloc_pid();
 
@@ -180,7 +182,7 @@ impl ProcessManager {
     }
 
     pub fn free_precess(&self, process: &Process) {
-        let mut data_guard = process.data.borrow_mut();
+        let mut data_guard = unsafe { process.data.get().as_mut() }.unwrap();
         let data = &mut *data_guard;
         let mut info_guard = process.info.lock();
         let info = &mut info_guard;

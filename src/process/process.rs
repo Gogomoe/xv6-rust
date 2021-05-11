@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use alloc::string::String;
-use core::cell::RefCell;
+use core::cell::{RefCell, UnsafeCell};
 use core::fmt;
 
 use bitflags::_core::ptr::null_mut;
@@ -70,7 +70,7 @@ impl ProcessInfo {
 }
 
 pub struct Process {
-    pub data: RefCell<ProcessData>,
+    pub data: UnsafeCell<ProcessData>,
     pub info: SpinLock<ProcessInfo>,
 }
 
@@ -79,7 +79,7 @@ unsafe impl Sync for Process {}
 impl Process {
     pub const fn new() -> Process {
         Process {
-            data: RefCell::new(ProcessData::new()),
+            data: UnsafeCell::new(ProcessData::new()),
             info: SpinLock::new(ProcessInfo::new(), "process"),
         }
     }
