@@ -122,7 +122,7 @@ impl ProcessManager {
         // TODO
         // data.current_dir = namei("/");
 
-        info.state = RUNNING;
+        info.state = RUNNABLE;
 
         drop(info_guard);
     }
