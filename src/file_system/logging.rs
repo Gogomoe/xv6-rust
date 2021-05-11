@@ -23,13 +23,13 @@ impl LogHeader {
 
 pub struct Log {
     lock: SpinLock<()>,
-    start: usize,
-    size: usize,
+    start: u32,
+    size: u32,
     // how many FS sys calls are executing.
     outstanding: usize,
     // in commit(), please wait.
     committing: bool,
-    dev: usize,
+    dev: u32,
     header: LogHeader,
 }
 
@@ -48,7 +48,7 @@ impl Log {
         }
     }
 
-    pub fn init(&mut self, dev: usize, sb: &SuperBlock) {
+    pub fn init(&mut self, dev: u32, sb: &SuperBlock) {
         assert!(size_of::<LogHeader>() < BLOCK_SIZE);
 
         self.start = sb.log_start;
@@ -98,8 +98,8 @@ impl Log {
     // Copy committed blocks from log to their home location
     fn install_transaction(&mut self, recovering: bool) {
         for i in 0..self.header.n {
-            let log_buffer = BLOCK_CACHE.read(self.dev, self.start + i + 1);
-            let dest_buffer = BLOCK_CACHE.read(self.dev, self.header.block[i]);
+            let log_buffer = BLOCK_CACHE.read(self.dev, self.start + i as u32 + 1);
+            let dest_buffer = BLOCK_CACHE.read(self.dev, self.header.block[i] as u32);
             unsafe {
                 ptr::copy(log_buffer.data(), dest_buffer.data(), 1);
             }
@@ -175,8 +175,8 @@ impl Log {
 
     fn write_log(&mut self) {
         for i in 0..self.header.n {
-            let log_buffer = BLOCK_CACHE.read(self.dev, self.start + i + 1);
-            let cache_buffer = BLOCK_CACHE.read(self.dev, self.header.block[i]);
+            let log_buffer = BLOCK_CACHE.read(self.dev, self.start + i as u32 + 1);
+            let cache_buffer = BLOCK_CACHE.read(self.dev, self.header.block[i] as u32);
             unsafe {
                 ptr::copy(cache_buffer.data(), log_buffer.data(), 1);
             }
@@ -187,13 +187,13 @@ impl Log {
     }
 
     pub fn write(&mut self, buffer: &BufferGuard) {
-        assert!(self.header.n < LOG_SIZE && self.header.n < self.size - 1);
+        assert!(self.header.n < LOG_SIZE && self.header.n < self.size as usize - 1);
         assert!(self.outstanding >= 1);
 
         let guard = self.lock.lock();
 
         for i in 0..self.header.n {
-            if self.header.block[i] == buffer.block_no() {
+            if self.header.block[i] as u32 == buffer.block_no() {
                 drop(guard);
                 return;
             }

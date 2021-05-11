@@ -44,7 +44,7 @@ impl<T: ?Sized> SpinLock<T> {
         }
         while self.lock.compare_and_swap(false, true, Ordering::Acquire) {}
         fence(Ordering::SeqCst);
-        unsafe { self.cpuid.set(cpu_id() as isize) };
+        self.cpuid.set(cpu_id() as isize);
     }
 
     fn release(&self) {

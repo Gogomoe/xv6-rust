@@ -11,10 +11,10 @@ type BufferData = [u8; BLOCK_SIZE];
 
 pub struct Buffer {
     valid: bool,
-    dev: usize,
-    block_no: usize,
+    dev: u32,
+    block_no: u32,
     data: SleepLock<BufferData>,
-    ref_count: usize,
+    ref_count: u32,
     last_used_time: usize,
 }
 
@@ -33,8 +33,8 @@ impl Buffer {
 
 pub struct BufferGuard<'a> {
     index: usize,
-    dev: usize,
-    block_no: usize,
+    dev: u32,
+    block_no: u32,
     data: SleepLockGuard<'a, BufferData>,
 }
 
@@ -47,11 +47,11 @@ impl BufferGuard<'_> {
         self.index
     }
 
-    pub fn dev(&self) -> usize {
+    pub fn dev(&self) -> u32 {
         self.dev
     }
 
-    pub fn block_no(&self) -> usize {
+    pub fn block_no(&self) -> u32 {
         self.block_no
     }
 }
@@ -75,7 +75,7 @@ impl BlockCache {
         }
     }
 
-    pub fn get(&self, dev: usize, block_no: usize) -> BufferGuard {
+    pub fn get(&self, dev: u32, block_no: u32) -> BufferGuard {
         let lock_guard = self.lock.lock();
 
         match self.find(dev, block_no).or(self.alloc(dev, block_no)) {
@@ -98,7 +98,7 @@ impl BlockCache {
     }
 
     /// should hold lock
-    fn find(&self, dev: usize, block_no: usize) -> Option<usize> {
+    fn find(&self, dev: u32, block_no: u32) -> Option<usize> {
         let buffers = unsafe { self.buffers.get().as_mut().unwrap() };
 
         for index in 0..buffers.len() {
@@ -110,7 +110,7 @@ impl BlockCache {
     }
 
     /// should hold lock
-    fn alloc(&self, dev: usize, block_no: usize) -> Option<usize> {
+    fn alloc(&self, dev: u32, block_no: u32) -> Option<usize> {
         let buffers = unsafe { self.buffers.get().as_mut().unwrap() };
 
         let mut lru_index: Option<usize> = None;
@@ -131,7 +131,7 @@ impl BlockCache {
         lru_index
     }
 
-    pub fn read(&self, dev: usize, block_no: usize) -> BufferGuard {
+    pub fn read(&self, dev: u32, block_no: u32) -> BufferGuard {
         let buffer = self.get(dev, block_no);
         let lock_guard = self.lock.lock();
         let buffers = unsafe { self.buffers.get().as_mut().unwrap() };

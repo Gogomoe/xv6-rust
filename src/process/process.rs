@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use alloc::string::String;
-use core::cell::{RefCell, UnsafeCell};
+use core::cell::UnsafeCell;
 use core::fmt;
 
 use bitflags::_core::ptr::null_mut;

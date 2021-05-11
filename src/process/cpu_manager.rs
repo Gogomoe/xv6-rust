@@ -78,7 +78,7 @@ impl Cpu {
         let proc = proc.as_ref().unwrap();
         let old_intr = self.interrupt_enable;
 
-        let data = unsafe { proc.data.get().as_mut() }.unwrap();
+        let data = proc.data.get().as_mut().unwrap();
         swtch(&mut data.context, &mut self.context);
         self.interrupt_enable = old_intr;
     }

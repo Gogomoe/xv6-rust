@@ -1,9 +1,9 @@
+use core::ptr;
+
 use crate::memory::{ActivePageTable, Page, PAGE_SIZE, PHYSICAL_MEMORY};
 use crate::memory::layout::{TRAMPOLINE, TRAPFRAME};
 use crate::memory::page_table::PageEntryFlags;
 use crate::process::trap_frame::TrapFrame;
-use core::intrinsics::{size_of, size_of_val};
-use core::ptr;
 
 extern {
     fn trampoline();

@@ -173,16 +173,16 @@ impl Disk {
         // plic.c and trap.c arrange for interrupts from VIRTIO0_IRQ.
     }
 
-    pub unsafe fn read(&mut self, block_no: usize, data: *mut [u8; BLOCK_SIZE]) {
+    pub unsafe fn read(&mut self, block_no: u32, data: *mut [u8; BLOCK_SIZE]) {
         self.read_write(block_no, data, false);
     }
 
-    pub unsafe fn write(&mut self, block_no: usize, data: *mut [u8; BLOCK_SIZE]) {
+    pub unsafe fn write(&mut self, block_no: u32, data: *mut [u8; BLOCK_SIZE]) {
         self.read_write(block_no, data, true);
     }
 
-    unsafe fn read_write(&mut self, block_no: usize, data: *mut [u8; BLOCK_SIZE], is_write: bool) {
-        let sector = block_no * BLOCK_SIZE / 512;
+    unsafe fn read_write(&mut self, block_no: u32, data: *mut [u8; BLOCK_SIZE], is_write: bool) {
+        let sector = block_no * BLOCK_SIZE as u32 / 512;
 
         let mut guard = DISK_LOCK.lock();
 

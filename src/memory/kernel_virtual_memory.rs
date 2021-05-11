@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 
-use crate::memory::{ActivePageTable, Frame, Page, page_round_down, PAGE_SIZE, PHYSICAL_MEMORY};
+use crate::memory::{ActivePageTable, Page, page_round_down, PAGE_SIZE, PHYSICAL_MEMORY};
 use crate::memory::layout::{CLINT, KERNEL_BASE, KERNEL_HEAP_SIZE, KERNEL_HEAP_START, PHY_STOP, PLIC, TRAMPOLINE, UART0, VIRTIO0};
 use crate::memory::page_table::PageEntryFlags;
 use crate::riscv::{sfence_vma, write_satp};

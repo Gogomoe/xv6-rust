@@ -11,18 +11,18 @@ use crate::sleep_lock::{SleepLock, SleepLockGuard};
 use crate::spin_lock::SpinLock;
 
 // Inodes per block
-const IPB: usize = BLOCK_SIZE / size_of::<INodeDisk>();
+const IPB: u32 = (BLOCK_SIZE / size_of::<INodeDisk>()) as u32;
 
 #[inline]
-fn iblock(i: usize, sb: &SuperBlock) -> usize {
+fn iblock(i: u32, sb: &SuperBlock) -> u32 {
     i / IPB + sb.inode_start
 }
 
 pub struct INode {
     lock: SleepLock<()>,
-    dev: usize,
-    inum: usize,
-    ref_count: usize,
+    dev: u32,
+    inum: u32,
+    ref_count: u32,
     valid: bool,
 
     types: u16,
@@ -30,8 +30,8 @@ pub struct INode {
     minor: u16,
     nlink: u16,
 
-    size: usize,
-    addr: [usize; DIRECTORY_COUNT + 1],
+    size: u32,
+    addr: [u32; DIRECTORY_COUNT + 1],
 
 }
 
@@ -73,20 +73,20 @@ impl INode {
 
     // Return the disk block address of the nth block in inode ip.
     // If there is no such block, bmap allocates one.
-    pub fn map(&mut self, mut bn: usize) -> usize {
+    pub fn map(&mut self, mut bn: u32) -> u32 {
         let log = unsafe { &mut LOG };
 
-        if bn < DIRECTORY_COUNT {
-            let mut addr = self.addr[bn];
+        if (bn as usize) < DIRECTORY_COUNT {
+            let mut addr = self.addr[bn as usize];
             if addr == 0 {
                 addr = Block::alloc(self.dev);
-                self.addr[bn] = addr;
+                self.addr[bn as usize] = addr;
             }
             return addr;
         }
-        bn -= DIRECTORY_COUNT;
+        bn -= DIRECTORY_COUNT as u32;
 
-        if bn < DIRECTORY_COUNT {
+        if (bn as usize) < DIRECTORY_COUNT {
             // Load indirect block, allocating if necessary.
             let mut addr = self.addr[DIRECTORY_COUNT];
             if addr == 0 {
@@ -95,11 +95,11 @@ impl INode {
             }
 
             let bp = BLOCK_CACHE.read(self.dev, addr);
-            let a = unsafe { (bp.data() as *mut [usize; 128] as *mut [usize]).as_ref() }.unwrap();
-            addr = a[bn];
+            let a = unsafe { (bp.data() as *mut [u32; 256] as *mut [u32]).as_ref() }.unwrap();
+            addr = a[bn as usize];
             if addr == 0 {
                 addr = Block::alloc(self.dev);
-                self.addr[bn] = addr;
+                self.addr[bn as usize] = addr;
                 log.write(&bp);
             }
             BLOCK_CACHE.release(bp);
@@ -114,7 +114,7 @@ impl INode {
     // Caller must hold ip->lock.
     // If user_dst==1, then dst is a user virtual address;
     // otherwise, dst is a kernel address.
-    pub fn read(&mut self, user_dst: bool, mut dst: usize, mut off: usize, mut n: usize) -> usize {
+    pub fn read(&mut self, user_dst: bool, mut dst: usize, mut off: u32, mut n: u32) -> u32 {
         if off > self.size || off + n < off {
             return 0;
         }
@@ -124,9 +124,9 @@ impl INode {
 
         let mut tot = 0;
         while tot < n {
-            let bp = BLOCK_CACHE.read(self.dev, self.map(off / BLOCK_SIZE));
-            let m = min(n - tot, BLOCK_SIZE - off % BLOCK_SIZE);
-            if !either_copy_out(user_dst, dst, bp.data() as usize + (off % BLOCK_SIZE), m) {
+            let bp = BLOCK_CACHE.read(self.dev, self.map(off / BLOCK_SIZE as u32));
+            let m = min(n - tot, BLOCK_SIZE as u32 - (off % BLOCK_SIZE as u32));
+            if !either_copy_out(user_dst, dst, bp.data() as usize + (off as usize % BLOCK_SIZE), m as usize) {
                 BLOCK_CACHE.release(bp);
                 tot = 0;
                 break;
@@ -135,7 +135,7 @@ impl INode {
 
             tot += m;
             off += m;
-            dst += m;
+            dst += m as usize;
         }
         return tot;
     }
@@ -148,21 +148,21 @@ impl INode {
     // Returns the number of bytes successfully written.
     // If the return value is less than the requested n,
     // there was an error of some kind.
-    pub fn write(&mut self, user_src: bool, mut src: usize, mut off: usize, n: usize) -> usize {
+    pub fn write(&mut self, user_src: bool, mut src: usize, mut off: u32, n: u32) -> u32 {
         let log = unsafe { &mut LOG };
 
         if off > self.size || off + n < off {
             return 0;
         }
-        if off + n > MAX_FILE_COUNT * BLOCK_SIZE {
+        if off + n > (MAX_FILE_COUNT * BLOCK_SIZE) as u32 {
             return 0;
         }
 
         let mut tot = 0;
         while tot < n {
-            let bp = BLOCK_CACHE.read(self.dev, self.map(off / BLOCK_SIZE));
-            let m = min(n - tot, BLOCK_SIZE - off % BLOCK_SIZE);
-            if !either_copy_in(user_src, bp.data() as usize + (off % BLOCK_SIZE), src, m) {
+            let bp = BLOCK_CACHE.read(self.dev, self.map(off / BLOCK_SIZE as u32));
+            let m = min(n - tot, BLOCK_SIZE as u32 - (off % BLOCK_SIZE as u32));
+            if !either_copy_in(user_src, bp.data() as usize + (off as usize % BLOCK_SIZE), src, m as usize) {
                 BLOCK_CACHE.release(bp);
                 break;
             }
@@ -171,7 +171,7 @@ impl INode {
 
             tot += m;
             off += m;
-            src += m;
+            src += m as usize;
         }
 
         if off > self.size {
@@ -188,7 +188,7 @@ impl INode {
 
     // Look for a directory entry in a directory.
     // If found, set *poff to byte offset of entry.
-    pub fn dir_lookup(&mut self, name: &[u8], poff: *mut usize) -> Option<&INode> {
+    pub fn dir_lookup(&mut self, name: &[u8], poff: *mut u32) -> Option<&INode> {
         assert_eq!(self.types, TYPE_DIR);
 
         let mut de = Dirent {
@@ -196,8 +196,8 @@ impl INode {
             name: [0; DIRECTORY_SIZE],
         };
 
-        let size_de = size_of::<Dirent>();
-        for off in (0..self.size).step_by(size_de) {
+        let size_de = size_of::<Dirent>() as u32;
+        for off in (0..self.size).step_by(size_de as usize) {
             if self.read(false, &mut de as *mut _ as usize, off, size_de) != size_de {
                 panic!("dirlookup read");
             }
@@ -210,14 +210,14 @@ impl INode {
                         (*poff) = off;
                     }
                 }
-                return Some(ICACHE.get(self.dev, de.inum as usize));
+                return Some(ICACHE.get(self.dev, de.inum as u32));
             }
         }
 
         return None;
     }
 
-    pub fn dir_link(&mut self, name: &[u8], inum: usize) -> Option<()> {
+    pub fn dir_link(&mut self, name: &[u8], inum: u32) -> Option<()> {
         let ip = self.dir_lookup(name, null_mut());
 
         // Check that name is not present.
@@ -232,7 +232,7 @@ impl INode {
         };
 
         // Look for an empty dirent.
-        let size_de = size_of::<Dirent>();
+        let size_de = size_of::<Dirent>() as u32;
         let mut off = 0;
         while off < self.size {
             if self.read(false, &de as *const _ as usize, off, size_de) != size_de {
@@ -264,8 +264,8 @@ pub struct INodeDisk {
     minor: u16,
     nlink: u16,
 
-    size: usize,
-    addr: [usize; DIRECTORY_COUNT + 1],
+    size: u32,
+    addr: [u32; DIRECTORY_COUNT + 1],
 }
 
 impl INodeDisk {
@@ -297,7 +297,7 @@ impl ICache {
     // Allocate an inode on device dev.
     // Mark it as allocated by  giving it type type.
     // Returns an unlocked but allocated and referenced inode.
-    pub fn alloc(&self, dev: usize, types: u16) -> &INode {
+    pub fn alloc(&self, dev: u32, types: u16) -> &INode {
         let sb = unsafe { &SUPER_BLOCK };
         let log = unsafe { &mut LOG };
         for inum in 1..sb.inode_number {
@@ -318,7 +318,7 @@ impl ICache {
         panic!("no inodes");
     }
 
-    fn get(&self, dev: usize, inum: usize) -> &INode {
+    fn get(&self, dev: u32, inum: u32) -> &INode {
         let mut guard = self.nodes.lock();
         let nodes = &mut *guard;
 
@@ -459,10 +459,10 @@ impl ICache {
 
         if inode.addr[DIRECTORY_COUNT] != 0 {
             let bp = BLOCK_CACHE.read(inode.dev, inode.addr[DIRECTORY_COUNT]);
-            let a = unsafe { (bp.data() as *mut [usize; 128] as *mut [usize]).as_ref() }.unwrap();
+            let a = unsafe { (bp.data() as *mut [u32; 256] as *mut [u32]).as_ref() }.unwrap();
             for i in 0..DIRECTORY_COUNT {
                 if a[i] != 0 {
-                    Block::free(inode.dev, a[i]);
+                    Block::free(inode.dev, a[i] as u32);
                 }
             }
             BLOCK_CACHE.release(bp);

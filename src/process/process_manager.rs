@@ -1,6 +1,5 @@
 use alloc::string::String;
 use core::ptr::null_mut;
-use core::sync::atomic::AtomicBool;
 
 use crate::file_system::file_system_init;
 use crate::memory::{KERNEL_PAGETABLE, Page, PAGE_SIZE, PHYSICAL_MEMORY, user_virtual_memory};
@@ -71,7 +70,7 @@ impl ProcessManager {
                     proc.state = RUNNING;
                     cpu.process = process as *const Process;
 
-                    let data = unsafe { process.data.get().as_mut() }.unwrap();
+                    let data = process.data.get().as_mut().unwrap();
                     swtch(&mut cpu.context, &mut data.context);
 
                     cpu.process = null_mut();
@@ -91,7 +90,7 @@ impl ProcessManager {
             let mut info_lock = process.info.lock();
             let info = &mut *info_lock;
             if info.state == SLEEPING && info.channel == channel {
-                info.state = RUNNING;
+                info.state = RUNNABLE;
             }
         }
     }
@@ -110,7 +109,7 @@ impl ProcessManager {
     pub unsafe fn user_init(&self) {
         let process = self.alloc_process().unwrap();
 
-        let mut data = unsafe { process.data.get().as_mut() }.unwrap();
+        let mut data = process.data.get().as_mut().unwrap();
         let mut info_guard = process.info.lock();
         let info = &mut info_guard;
 
@@ -176,13 +175,13 @@ impl ProcessManager {
     fn alloc_pid(&self) -> usize {
         let mut guard = self.pid.lock();
         (*guard) = (*guard) + 1;
-        let pid = (*guard);
+        let pid = *guard;
         drop(guard);
         return pid;
     }
 
     pub fn free_precess(&self, process: &Process) {
-        let mut data_guard = unsafe { process.data.get().as_mut() }.unwrap();
+        let data_guard = unsafe { process.data.get().as_mut() }.unwrap();
         let data = &mut *data_guard;
         let mut info_guard = process.info.lock();
         let info = &mut info_guard;

@@ -10,13 +10,13 @@ pub mod inode;
 pub mod directory;
 
 pub const BLOCK_SIZE: usize = 1024;
-pub const FSMAGIC: usize = 0x10203040;
+pub const FSMAGIC: u32 = 0x10203040;
 
 pub const DIRECTORY_COUNT: usize = 12;
 pub const DIRECTORY_INNER_COUNT: usize = BLOCK_SIZE / size_of::<usize>();
 pub const MAX_FILE_COUNT: usize = DIRECTORY_COUNT + DIRECTORY_INNER_COUNT;
 
-pub const BPB: usize = BLOCK_SIZE * 8;
+pub const BPB: u32 = (BLOCK_SIZE * 8) as u32;
 
 pub const DIRECTORY_SIZE: usize = 14;
 
@@ -27,11 +27,11 @@ pub struct Dirent {
 }
 
 #[inline]
-fn bblock(block: usize, sb: &SuperBlock) -> usize {
-    block / BPB + sb.block_map_start
+fn bblock(block: u32, sb: &SuperBlock) -> u32 {
+    block / BPB as u32 + sb.block_map_start
 }
 
-pub fn file_system_init(dev: usize) {
+pub fn file_system_init(dev: u32) {
     unsafe {
         SUPER_BLOCK.read(dev);
         assert_eq!(SUPER_BLOCK.magic, FSMAGIC);
@@ -43,18 +43,18 @@ pub static mut SUPER_BLOCK: SuperBlock = SuperBlock::new();
 
 #[repr(C)]
 pub struct SuperBlock {
-    magic: usize,
-    size: usize,
-    blocks_number: usize,
-    inode_number: usize,
-    log_number: usize,
-    log_start: usize,
-    inode_start: usize,
-    block_map_start: usize,
+    magic: u32,
+    size: u32,
+    blocks_number: u32,
+    inode_number: u32,
+    log_number: u32,
+    log_start: u32,
+    inode_start: u32,
+    block_map_start: u32,
 }
 
 impl SuperBlock {
-    fn read(&mut self, dev: usize) {
+    fn read(&mut self, dev: u32) {
         let block = BLOCK_CACHE.read(dev, 1);
         unsafe {
             ptr::copy(block.data() as *const SuperBlock, self as *mut SuperBlock, 1);
@@ -81,7 +81,7 @@ impl SuperBlock {
 struct Block {}
 
 impl Block {
-    pub fn zero(dev: usize, block_no: usize) {
+    pub fn zero(dev: u32, block_no: u32) {
         let block = BLOCK_CACHE.read(dev, block_no);
         unsafe {
             ptr::write_bytes(block.data(), 0, BLOCK_SIZE);
@@ -90,20 +90,20 @@ impl Block {
         BLOCK_CACHE.release(block);
     }
 
-    pub fn alloc(dev: usize) -> usize {
+    pub fn alloc(dev: u32) -> u32 {
         let sb = unsafe { &SUPER_BLOCK };
         let log = unsafe { &mut LOG };
-        for b in (0..sb.size).step_by(BPB) {
+        for b in (0..sb.size).step_by(BPB as usize) {
             let block = BLOCK_CACHE.read(dev, bblock(b, sb));
-            for bi in 0..BPB {
+            for bi in 0..(BPB as u32) {
                 if b + bi >= sb.size {
                     break;
                 }
 
                 let m = 1 << (bi % 8);
                 let data = unsafe { &mut *block.data() };
-                if data[bi / 8] & m == 0 { // Is the block free?
-                    data[bi / 8] |= m;
+                if data[(bi / 8) as usize] & m == 0 { // Is the block free?
+                    data[(bi / 8) as usize] |= m;
                     log.write(&block);
                     BLOCK_CACHE.release(block);
                     Block::zero(dev, b + bi);
@@ -116,18 +116,18 @@ impl Block {
         panic!("out of blocks");
     }
 
-    pub fn free(dev: usize, b: usize) {
+    pub fn free(dev: u32, b: u32) {
         let sb = unsafe { &SUPER_BLOCK };
         let log = unsafe { &mut LOG };
 
         let block = BLOCK_CACHE.read(dev, bblock(b, sb));
         let data = unsafe { &mut *block.data() };
-        let bi = b % BPB;
+        let bi = b % (BPB as u32);
         let m = 1 << (bi % 8);
 
-        assert_ne!(data[bi / 8] & m, 0);
+        assert_ne!(data[(bi / 8) as usize] & m, 0);
 
-        data[bi / 8] &= !m;
+        data[(bi / 8) as usize] &= !m;
         log.write(&block);
 
         BLOCK_CACHE.release(block);
