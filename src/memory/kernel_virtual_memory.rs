@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 
-use crate::memory::{ActivePageTable, Page, page_round_down, PAGE_SIZE, PHYSICAL_MEMORY};
+use crate::memory::{ActivePageTable, make_satp, Page, page_round_down, PAGE_SIZE, PHYSICAL_MEMORY};
 use crate::memory::layout::{CLINT, KERNEL_BASE, KERNEL_HEAP_SIZE, KERNEL_HEAP_START, PHY_STOP, PLIC, TRAMPOLINE, UART0, VIRTIO0};
 use crate::memory::page_table::PageEntryFlags;
 use crate::riscv::{sfence_vma, write_satp};
@@ -72,10 +72,6 @@ pub fn kernel_page_table_init() {
 }
 
 pub fn hart_init() {
-    const SATP_SV39: usize = 8 << 60;
-    fn make_satp(page_table: &ActivePageTable) -> usize {
-        SATP_SV39 | (page_table.addr() >> 12)
-    }
     unsafe {
         write_satp(make_satp(&*KERNEL_PAGETABLE.lock()));
         sfence_vma();

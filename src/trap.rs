@@ -1,16 +1,22 @@
+use core::mem::transmute;
+
 use crate::console::uart::uart_intr;
 use crate::driver::DISK;
-use crate::memory::layout::{UART0_IRQ, VIRTIO0_IRQ};
+use crate::memory::{make_satp, PAGE_SIZE};
+use crate::memory::layout::{TRAMPOLINE, TRAPFRAME, UART0_IRQ, VIRTIO0_IRQ};
 use crate::plic::{plic_claim, plic_complete};
 use crate::process::{cpu_id, CPU_MANAGER, PROCESS_MANAGER};
 use crate::process::process::ProcessState::RUNNING;
-use crate::riscv::{intr_get, read_scause, read_sepc, read_sip, read_sstatus, read_stval, SSTATUS_SPP, write_sepc, write_sip, write_sstatus, write_stvec};
+use crate::riscv::{intr_get, intr_off, read_satp, read_scause, read_sepc, read_sip, read_sstatus, read_stval, read_tp, SSTATUS_SPIE, SSTATUS_SPP, write_sepc, write_sip, write_sstatus, write_stvec};
 use crate::spin_lock::SpinLock;
 
 pub static TICKS: SpinLock<usize> = SpinLock::new(0, "ticks");
 
 extern {
     fn kernelvec();
+    fn uservec();
+    fn trampoline();
+    fn userret();
 }
 
 pub fn trap_hart_init() {
@@ -21,11 +27,81 @@ pub fn trap_hart_init() {
 
 #[no_mangle]
 pub unsafe fn usertrap() {
+    if read_sstatus() & SSTATUS_SPP != 0 {
+        panic!("not from user mode");
+    }
+
+    // send interrupts and exceptions to kerneltrap(),
+    // since we're now in the kernel.
+    let kernelvec = kernelvec as usize;
+    write_stvec(kernelvec);
+
+    let process = CPU_MANAGER.my_proc().as_ref().unwrap();
+    let data = process.data.get().as_mut().unwrap();
+    let trap_frame = data.trap_frame.as_mut().unwrap();
+
+    // save user program counter.
+    trap_frame.epc = read_sepc() as u64;
+
+    let which_dev = dev_intr();
+
+    if read_scause() == 8 {
+        // system call
+    } else if which_dev != 0 {
+        // ok
+    } else {
+        println!("unexpected scause {:x} pid={}", read_scause(), (*process.info.lock()).pid);
+        println!("sepc={:x} stval={:x}", read_sepc(), read_stval());
+        // TODO kill p
+    }
+
     todo!()
 }
 
-pub fn user_trap_return() {
-    todo!()
+pub unsafe fn user_trap_return() {
+    let process = CPU_MANAGER.my_proc().as_ref().unwrap();
+
+    // we're about to switch the destination of traps from
+    // kerneltrap() to usertrap(), so turn off interrupts until
+    // we're back in user space, where usertrap() is correct.
+    intr_off();
+
+    // send syscalls, interrupts, and exceptions to trampoline.S
+    let uservec = uservec as usize;
+    let trampoline = trampoline as usize;
+    let userret = userret as usize;
+    write_stvec(TRAMPOLINE + (uservec - trampoline));
+
+    // set up trapframe values that uservec will need when
+    // the process next re-enters the kernel.
+    let data = process.data.get().as_mut().unwrap();
+    let trap_frame = data.trap_frame.as_mut().unwrap();
+    trap_frame.kernel_satp = read_satp() as u64;
+    trap_frame.kernel_sp = (data.kernel_stack + PAGE_SIZE) as u64;
+    trap_frame.kernel_trap = usertrap as u64;
+    trap_frame.kernel_hartid = read_tp() as u64;
+
+    // set up the registers that trampoline.S's sret will use
+    // to get to user space.
+
+    // set S Previous Privilege mode to User.
+    let mut x = read_sstatus();
+    x &= !SSTATUS_SPP;
+    x |= SSTATUS_SPIE;
+    write_sstatus(x);
+
+    // set S Exception Program Counter to the saved user pc.
+    write_sepc(trap_frame.epc as usize);
+
+    // tell trampoline.S the user page table to switch to.
+    let satp = make_satp(data.page_table.as_ref().unwrap());
+
+    // jump to trampoline.S at the top of memory, which
+    // switches to the user page table, restores user registers,
+    // and switches to user mode with sret.
+    let func = TRAMPOLINE + (userret - trampoline);
+    let func: extern "C" fn(usize, usize) = transmute(func);
+    func(TRAPFRAME, satp);
 }
 
 #[no_mangle]

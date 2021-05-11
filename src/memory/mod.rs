@@ -21,6 +21,13 @@ pub const PAGE_SIZE: usize = 4096;
 pub type PhysicalAddress = usize;
 pub type VirtualAddress = usize;
 
+const SATP_SV39: usize = 8 << 60;
+
+#[inline]
+pub fn make_satp(page_table: &ActivePageTable) -> usize {
+    SATP_SV39 | (page_table.addr() >> 12)
+}
+
 pub fn page_round_up(addr: usize) -> usize {
     (addr + PAGE_SIZE - 1) & (!(PAGE_SIZE - 1))
 }
