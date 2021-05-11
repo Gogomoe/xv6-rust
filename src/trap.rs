@@ -20,6 +20,15 @@ pub fn trap_hart_init() {
 }
 
 #[no_mangle]
+pub unsafe fn usertrap() {
+    todo!()
+}
+
+pub fn user_trap_return() {
+    todo!()
+}
+
+#[no_mangle]
 pub unsafe fn kerneltrap() {
     let sepc = read_sepc();
     let sstatus = read_sstatus();

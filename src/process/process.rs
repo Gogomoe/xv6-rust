@@ -6,6 +6,7 @@ use core::fmt;
 
 use bitflags::_core::ptr::null_mut;
 
+use crate::file_system::inode::INode;
 use crate::memory::ActivePageTable;
 use crate::process::context::Context;
 use crate::process::trap_frame::TrapFrame;
@@ -18,9 +19,10 @@ pub struct ProcessData {
     pub page_table: Option<ActivePageTable>,
     pub trap_frame: *mut TrapFrame,
     pub context: Context,
+    pub current_dir: *mut INode,
     pub name: String,
 
-    // TODO, open file, current dir
+    // TODO, open file
 }
 
 unsafe impl Send for ProcessData {}
@@ -33,6 +35,7 @@ impl ProcessData {
             page_table: None,
             trap_frame: null_mut(),
             context: Context::new(),
+            current_dir: null_mut(),
             name: String::new(),
         }
     }
@@ -52,6 +55,8 @@ pub struct ProcessInfo {
     pub state: ProcessState,
     pub channel: usize,
     pub pid: usize,
+
+    // TODO parent, killed, exit state
 }
 
 impl ProcessInfo {

@@ -40,24 +40,6 @@ lazy_static! {
 }
 
 impl ActivePageTable {
-    fn map_pages(&mut self, virtual_memory: usize, physical_memory: usize, size: usize, perm: PageEntryFlags) {
-        let mut v_addr = page_round_down(virtual_memory);
-        let mut p_addr = physical_memory;
-        let v_last = page_round_down(virtual_memory + size - 1) + PAGE_SIZE;
-
-        while v_addr < v_last {
-            let result = self.map(
-                Page::from_virtual_address(v_addr),
-                Frame::from_physical_address(p_addr),
-                perm,
-            );
-            assert!(result);
-
-            v_addr += PAGE_SIZE;
-            p_addr += PAGE_SIZE;
-        }
-    }
-
     fn alloc_pages(&mut self, virtual_memory: usize, size: usize, perm: PageEntryFlags) {
         let mut v_addr = page_round_down(virtual_memory);
         let v_last = page_round_down(virtual_memory + size - 1) + PAGE_SIZE;

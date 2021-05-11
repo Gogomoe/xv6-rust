@@ -1,15 +1,20 @@
+use alloc::string::String;
 use core::ptr::null_mut;
+use core::sync::atomic::AtomicBool;
 
-use crate::memory::{KERNEL_PAGETABLE, Page, PAGE_SIZE, PHYSICAL_MEMORY};
-use crate::memory::layout::TRAMPOLINE;
+use crate::file_system::file_system_init;
+use crate::memory::{KERNEL_PAGETABLE, Page, PAGE_SIZE, PHYSICAL_MEMORY, user_virtual_memory};
+use crate::memory::layout::{TRAMPOLINE, TRAPFRAME};
 use crate::memory::page_table::PageEntryFlags;
-use crate::param::MAX_PROCESS_NUMBER;
+use crate::param::{MAX_PROCESS_NUMBER, ROOT_DEV};
 use crate::process::context::Context;
 use crate::process::CPU_MANAGER;
 use crate::process::process::Process;
 use crate::process::process::ProcessState::{RUNNABLE, RUNNING, SLEEPING, UNUSED};
+use crate::process::trap_frame::TrapFrame;
 use crate::riscv::{intr_on, sfence_vma};
 use crate::spin_lock::SpinLock;
+use crate::trap::user_trap_return;
 
 pub struct ProcessManager {
     processes: [Process; MAX_PROCESS_NUMBER],
@@ -98,4 +103,126 @@ impl ProcessManager {
             }
         }
     }
+
+    pub unsafe fn user_init(&self) {
+        let process = self.alloc_process().unwrap();
+
+        let mut data_guard = process.data.borrow_mut();
+        let data = &mut *data_guard;
+        let mut info_guard = process.info.lock();
+        let info = &mut info_guard;
+
+        user_virtual_memory::init(data.page_table.as_mut().unwrap());
+        data.size = PAGE_SIZE;
+
+        (*data.trap_frame).epc = 0;
+        (*data.trap_frame).sp = PAGE_SIZE as u64;
+
+        data.name = String::from("initcode");
+        // TODO
+        // data.current_dir = namei("/");
+
+        info.state = RUNNING;
+
+        drop(info_guard);
+    }
+
+    pub fn alloc_process(&self) -> Option<&Process> {
+        for process in self.processes.iter() {
+            let mut guard = process.info.lock();
+            let info = &mut *guard;
+            if info.state == UNUSED {
+                let mut data = &mut *process.data.borrow_mut();
+
+                info.pid = self.alloc_pid();
+
+                // Allocate a trapframe page.
+                data.trap_frame = match PHYSICAL_MEMORY.alloc() {
+                    Some(frame) => {
+                        frame.addr() as *mut TrapFrame
+                    }
+                    None => {
+                        drop(guard);
+                        return None;
+                    }
+                };
+
+                // An empty user page table.
+                data.page_table = user_virtual_memory::alloc_page_table(data.trap_frame);
+                if data.page_table.is_none() {
+                    self.free_precess(process);
+                    drop(guard);
+                    return None;
+                }
+
+                // Set up new context to start executing at forkret,
+                // which returns to user space.
+                data.context.clear();
+                data.context.ra = fork_return as u64;
+                data.context.sp = (data.kernel_stack + PAGE_SIZE) as u64;
+
+                drop(guard);
+                return Some(process);
+            }
+
+            drop(guard);
+        }
+
+        None
+    }
+
+    fn alloc_pid(&self) -> usize {
+        let mut guard = self.pid.lock();
+        (*guard) = (*guard) + 1;
+        let pid = (*guard);
+        drop(guard);
+        return pid;
+    }
+
+    pub fn free_precess(&self, process: &Process) {
+        let mut data_guard = process.data.borrow_mut();
+        let data = &mut *data_guard;
+        let mut info_guard = process.info.lock();
+        let info = &mut info_guard;
+
+        if !data.trap_frame.is_null() {
+            PHYSICAL_MEMORY.free(data.trap_frame as usize);
+        }
+        data.trap_frame = null_mut();
+
+        if data.page_table.is_some() {
+            let mut page_table = data.page_table.take().unwrap();
+            page_table.unmap_pages(TRAMPOLINE, PAGE_SIZE);
+            page_table.unmap_pages(TRAPFRAME, PAGE_SIZE);
+            user_virtual_memory::free_page_table(page_table, data.size);
+        }
+        data.page_table = None;
+        data.size = 0;
+        data.name.clear();
+
+        info.pid = 0;
+        info.channel = 0;
+        info.state = UNUSED;
+
+        // TODO parent, killed, exit state
+    }
+}
+
+// A fork child's very first scheduling by scheduler()
+// will swtch to forkret.
+unsafe fn fork_return() {
+    static mut IS_FIRST_PROCESS: bool = true;
+
+    // Still holding p->lock from scheduler.
+    (*CPU_MANAGER.my_proc()).info.unlock();
+
+    if IS_FIRST_PROCESS {
+        // File system initialization must be run in the context of a
+        // regular process (e.g., because it calls sleep), and thus cannot
+        // be run from main().
+        IS_FIRST_PROCESS = false;
+        file_system_init(ROOT_DEV);
+    }
+
+    user_trap_return();
 }

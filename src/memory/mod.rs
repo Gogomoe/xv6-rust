@@ -14,6 +14,7 @@ pub mod virtual_memory;
 pub mod page_table;
 pub mod kernel_virtual_memory;
 pub mod kernel_heap;
+pub mod user_virtual_memory;
 
 pub const PAGE_SIZE: usize = 4096;
 

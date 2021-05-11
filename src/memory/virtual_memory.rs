@@ -1,6 +1,6 @@
 use core::intrinsics::size_of;
 
-use crate::memory::{Frame, PAGE_SIZE, PHYSICAL_MEMORY, PhysicalAddress, VirtualAddress};
+use crate::memory::{Frame, page_round_down, PAGE_SIZE, PHYSICAL_MEMORY, PhysicalAddress, VirtualAddress};
 use crate::memory::layout::MAX_VA;
 use crate::memory::page_table::{Level1, Level2, Level3, PageEntry, PageEntryFlags, PageTable};
 
@@ -89,6 +89,47 @@ impl ActivePageTable {
         let frame = p1[page.l1_index()].pointed_frame().unwrap();
         p1[page.l1_index()].set_unused();
         PHYSICAL_MEMORY.dealloc(frame);
+    }
+
+    pub fn map_pages(&mut self, virtual_memory: usize, physical_memory: usize, size: usize, perm: PageEntryFlags) -> bool {
+        let mut v_addr = page_round_down(virtual_memory);
+        let mut p_addr = physical_memory;
+        let v_last = page_round_down(virtual_memory + size - 1) + PAGE_SIZE;
+
+        while v_addr < v_last {
+            let result = self.map(
+                Page::from_virtual_address(v_addr),
+                Frame::from_physical_address(p_addr),
+                perm,
+            );
+            if !result {
+                return false;
+            }
+
+            v_addr += PAGE_SIZE;
+            p_addr += PAGE_SIZE;
+        }
+
+        true
+    }
+
+    pub fn unmap_pages(&mut self, virtual_memory: usize, size: usize) {
+        assert_eq!(virtual_memory % PAGE_SIZE, 0);
+        assert_eq!(size % PAGE_SIZE, 0);
+
+        for v_addr in (virtual_memory..(virtual_memory + size)).step_by(PAGE_SIZE) {
+            self.unmap_no_free(Page::from_virtual_address(v_addr));
+        }
+    }
+
+    fn unmap_no_free(&mut self, page: Page) {
+        assert!(self.translate(page.addr()).is_some());
+
+        let p1 = self.p3_mut().next_table_mut(page.l3_index())
+            .and_then(|p2| p2.next_table_mut(page.l2_index()))
+            .expect("unmap");
+
+        p1[page.l1_index()].set_unused();
     }
 }
 
