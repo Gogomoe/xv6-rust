@@ -150,7 +150,7 @@ impl Disk {
             panic!("virtio disk max queue too short");
         }
         write(VIRTIO_MMIO_QUEUE_NUM, NUM as u32);
-        ptr::write_bytes(&mut self.pages as *mut [u8; 2 * PAGE_SIZE], 0, self.pages.len());
+        ptr::write_bytes(&mut self.pages as *mut [u8; 2 * PAGE_SIZE], 0, 1);
         write(VIRTIO_MMIO_QUEUE_PFN, u32::try_from(&self.pages as *const _ as usize >> 12).unwrap());
 
         // desc = pages -- num * VRingDesc
