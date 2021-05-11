@@ -1,12 +1,11 @@
 use core::intrinsics::size_of;
 use core::ptr;
 
-use spin::Mutex;
-
 use crate::file_system::{BLOCK_CACHE, BLOCK_SIZE, SuperBlock};
 use crate::file_system::buffer_cache::BufferGuard;
 use crate::param::{LOG_SIZE, MAX_OP_BLOCKS};
 use crate::process::{CPU_MANAGER, PROCESS_MANAGER};
+use crate::spin_lock::SpinLock;
 
 struct LogHeader {
     n: usize,
@@ -23,7 +22,7 @@ impl LogHeader {
 }
 
 pub struct Log {
-    lock: Mutex<()>,
+    lock: SpinLock<()>,
     start: usize,
     size: usize,
     // how many FS sys calls are executing.
@@ -39,7 +38,7 @@ pub static mut LOG: Log = Log::new();
 impl Log {
     pub const fn new() -> Log {
         Log {
-            lock: Mutex::new(()),
+            lock: SpinLock::new((), "log"),
             start: 0,
             size: 0,
             outstanding: 0,

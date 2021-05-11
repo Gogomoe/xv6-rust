@@ -1,7 +1,5 @@
 use core::ptr::null_mut;
 
-use spin::Mutex;
-
 use crate::memory::{KERNEL_PAGETABLE, Page, PAGE_SIZE, PHYSICAL_MEMORY};
 use crate::memory::layout::TRAMPOLINE;
 use crate::memory::page_table::PageEntryFlags;
@@ -11,10 +9,11 @@ use crate::process::CPU_MANAGER;
 use crate::process::process::Process;
 use crate::process::process::ProcessState::{RUNNABLE, RUNNING, SLEEPING, UNUSED};
 use crate::riscv::{intr_on, sfence_vma};
+use crate::spin_lock::SpinLock;
 
 pub struct ProcessManager {
     processes: [Process; MAX_PROCESS_NUMBER],
-    pid: Mutex<usize>,
+    pid: SpinLock<usize>,
 }
 
 unsafe impl Send for ProcessManager {}
@@ -25,7 +24,7 @@ impl ProcessManager {
     const fn new() -> ProcessManager {
         ProcessManager {
             processes: array![_ => Process::new(); MAX_PROCESS_NUMBER],
-            pid: Mutex::new(0),
+            pid: SpinLock::new(0, "pid"),
         }
     }
 

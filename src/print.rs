@@ -1,8 +1,7 @@
 use core::fmt;
 
-use spin::Mutex;
-
 use crate::console;
+use crate::spin_lock::SpinLock;
 
 struct ConsolePrinter {}
 
@@ -21,7 +20,7 @@ impl fmt::Write for ConsolePrinter {
     }
 }
 
-static PRINTER: Mutex<ConsolePrinter> = Mutex::new(ConsolePrinter {});
+static PRINTER: SpinLock<ConsolePrinter> = SpinLock::new(ConsolePrinter {}, "printer");
 
 pub fn _print(args: fmt::Arguments<'_>) {
     use core::fmt::Write;

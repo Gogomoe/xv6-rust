@@ -4,12 +4,11 @@ use core::ptr;
 use core::ptr::null_mut;
 use core::sync::atomic::{AtomicBool, fence, Ordering};
 
-use spin::Mutex;
-
-use crate::memory::PAGE_SIZE;
 use crate::memory::KERNEL_PAGETABLE;
 use crate::memory::layout::VIRTIO0;
+use crate::memory::PAGE_SIZE;
 use crate::process::{CPU_MANAGER, PROCESS_MANAGER};
+use crate::spin_lock::SpinLock;
 
 const NUM: usize = 8;
 const BLOCK_SIZE: usize = 1024;
@@ -84,7 +83,7 @@ pub struct Disk {
 }
 
 pub static mut DISK: Disk = Disk::new();
-pub static DISK_LOCK: Mutex<()> = Mutex::new(());
+pub static DISK_LOCK: SpinLock<()> = SpinLock::new((), "disk");
 
 unsafe impl Send for Disk {}
 

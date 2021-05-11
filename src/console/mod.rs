@@ -1,6 +1,5 @@
-use spin::Mutex;
-
 use crate::process::PROCESS_MANAGER;
+use crate::spin_lock::SpinLock;
 
 pub mod uart;
 
@@ -23,12 +22,12 @@ struct Console {
     edit: usize,
 }
 
-static CONSOLE: Mutex<Console> = Mutex::new(Console {
+static CONSOLE: SpinLock<Console> = SpinLock::new(Console {
     buffer: [0; INPUT_BUFFER],
     read: 0,
     write: 0,
     edit: 0,
-});
+}, "console");
 
 // the console input interrupt handler.
 // uartintr() calls this for input character.

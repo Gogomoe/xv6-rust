@@ -5,11 +5,11 @@ use core::cell::RefCell;
 use core::fmt;
 
 use bitflags::_core::ptr::null_mut;
-use spin::Mutex;
 
 use crate::memory::ActivePageTable;
 use crate::process::context::Context;
 use crate::process::trap_frame::TrapFrame;
+use crate::spin_lock::SpinLock;
 
 /// private data for process, no lock needs
 pub struct ProcessData {
@@ -66,7 +66,7 @@ impl ProcessInfo {
 
 pub struct Process {
     pub data: RefCell<ProcessData>,
-    pub info: Mutex<ProcessInfo>,
+    pub info: SpinLock<ProcessInfo>,
 }
 
 unsafe impl Sync for Process {}
@@ -75,7 +75,7 @@ impl Process {
     pub const fn new() -> Process {
         Process {
             data: RefCell::new(ProcessData::new()),
-            info: Mutex::new(ProcessInfo::new()),
+            info: SpinLock::new(ProcessInfo::new(), "process"),
         }
     }
 }

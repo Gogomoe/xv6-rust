@@ -1,7 +1,8 @@
 use core::ptr::null_mut;
 
 use lazy_static::lazy_static;
-use spin::Mutex;
+
+use crate::spin_lock::SpinLock;
 
 use super::*;
 use super::layout::*;
@@ -12,12 +13,12 @@ extern {
 
 #[repr(C)]
 struct FreePage {
-    next: *mut FreePage
+    next: *mut FreePage,
 }
 
 #[repr(C)]
 struct FreeMemory {
-    head: *mut FreePage
+    head: *mut FreePage,
 }
 
 unsafe impl Send for FreeMemory {}
@@ -39,7 +40,7 @@ impl Frame {
 pub struct PhysicalMemory {
     start: usize,
     end: usize,
-    memory: Mutex<FreeMemory>,
+    memory: SpinLock<FreeMemory>,
 }
 
 lazy_static! {
@@ -52,7 +53,7 @@ lazy_static! {
         let memory = PhysicalMemory {
             start: start,
             end: end,
-            memory: Mutex::new(FreeMemory { head: null_mut() }),
+            memory: SpinLock::new(FreeMemory { head: null_mut() },"physical memory"),
         };
 
         memory.free_range(start, end);

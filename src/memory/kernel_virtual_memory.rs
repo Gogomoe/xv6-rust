@@ -1,10 +1,10 @@
 use lazy_static::lazy_static;
-use spin::Mutex;
 
 use crate::memory::{ActivePageTable, Frame, Page, page_round_down, PAGE_SIZE, PHYSICAL_MEMORY};
 use crate::memory::layout::{CLINT, KERNEL_BASE, KERNEL_HEAP_SIZE, KERNEL_HEAP_START, PHY_STOP, PLIC, TRAMPOLINE, UART0, VIRTIO0};
 use crate::memory::page_table::PageEntryFlags;
 use crate::riscv::{sfence_vma, write_satp};
+use crate::spin_lock::SpinLock;
 
 extern {
     fn etext();
@@ -16,7 +16,7 @@ unsafe impl Sync for ActivePageTable {}
 unsafe impl Send for ActivePageTable {}
 
 lazy_static! {
-    pub static ref KERNEL_PAGETABLE: Mutex<ActivePageTable> = {
+    pub static ref KERNEL_PAGETABLE: SpinLock<ActivePageTable> = {
         let mut page_table = ActivePageTable::new().unwrap();
 
         let rw = PageEntryFlags::READABLE | PageEntryFlags::WRITEABLE;
@@ -35,7 +35,7 @@ lazy_static! {
 
         page_table.alloc_pages(KERNEL_HEAP_START, KERNEL_HEAP_SIZE, rw);
 
-        Mutex::new(page_table)
+        SpinLock::new(page_table,"kernel page table")
     };
 }
 

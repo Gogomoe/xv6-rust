@@ -1,12 +1,11 @@
 use core::cell::UnsafeCell;
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-use spin::Mutex;
-
 use crate::driver::DISK;
 use crate::file_system::BLOCK_SIZE;
 use crate::param::BUFFER_SIZE;
 use crate::sleep_lock::{SleepLock, SleepLockGuard};
+use crate::spin_lock::SpinLock;
 
 type BufferData = [u8; BLOCK_SIZE];
 
@@ -59,7 +58,7 @@ impl BufferGuard<'_> {
 
 pub struct BlockCache {
     buffers: UnsafeCell<[Buffer; BUFFER_SIZE]>,
-    lock: Mutex<()>,
+    lock: SpinLock<()>,
     lru_release_count: AtomicUsize,
 }
 
@@ -71,7 +70,7 @@ impl BlockCache {
     pub const fn new() -> BlockCache {
         BlockCache {
             buffers: UnsafeCell::new(array![_ => Buffer::new(); BUFFER_SIZE]),
-            lock: Mutex::new(()),
+            lock: SpinLock::new((), "block cache"),
             lru_release_count: AtomicUsize::new(0),
         }
     }

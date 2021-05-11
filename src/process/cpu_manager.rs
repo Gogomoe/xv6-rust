@@ -1,13 +1,12 @@
 use core::cell::RefCell;
 use core::ptr::null_mut;
 
-use spin::MutexGuard;
-
 use crate::param::MAX_CPU_NUMBER;
 use crate::process::context::Context;
 use crate::process::process::{Process, ProcessInfo};
 use crate::process::process::ProcessState::{RUNNABLE, RUNNING, SLEEPING};
 use crate::riscv::{intr_get, intr_off, intr_on, read_tp};
+use crate::spin_lock::SpinLockGuard;
 
 pub struct Cpu {
     pub process: *const Process,
@@ -66,7 +65,7 @@ impl Cpu {
         }
     }
 
-    pub unsafe fn scheduled(&mut self, guard: &MutexGuard<ProcessInfo>) {
+    pub unsafe fn scheduled(&mut self, guard: &SpinLockGuard<ProcessInfo>) {
         extern {
             fn swtch(old: *mut Context, new: *mut Context);
         }
@@ -94,7 +93,7 @@ impl Cpu {
     }
 
     /// NOTICE: acquire lock after sleep
-    pub fn sleep<T>(&mut self, channel: usize, guard: MutexGuard<T>) {
+    pub fn sleep<T>(&mut self, channel: usize, guard: SpinLockGuard<T>) {
         let proc = self.my_proc();
         assert!(!proc.is_null());
         let proc = unsafe { proc.as_ref().unwrap() };

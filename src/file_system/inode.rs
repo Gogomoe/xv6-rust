@@ -3,13 +3,12 @@ use core::intrinsics::size_of;
 use core::ptr;
 use core::ptr::null_mut;
 
-use spin::Mutex;
-
 use crate::file_system::{Block, BLOCK_CACHE, BLOCK_SIZE, DIRECTORY_COUNT, DIRECTORY_SIZE, Dirent, LOG, MAX_FILE_COUNT, SUPER_BLOCK, SuperBlock};
 use crate::file_system::directory::{FileStatus, TYPE_DIR};
 use crate::memory::{either_copy_in, either_copy_out};
 use crate::param::MAX_INODE_NUMBER;
 use crate::sleep_lock::{SleepLock, SleepLockGuard};
+use crate::spin_lock::SpinLock;
 
 // Inodes per block
 const IPB: usize = BLOCK_SIZE / size_of::<INodeDisk>();
@@ -285,13 +284,13 @@ impl INodeDisk {
 pub static ICACHE: ICache = ICache::new();
 
 pub struct ICache {
-    nodes: Mutex<[INode; MAX_INODE_NUMBER]>,
+    nodes: SpinLock<[INode; MAX_INODE_NUMBER]>,
 }
 
 impl ICache {
     const fn new() -> ICache {
         ICache {
-            nodes: Mutex::new(array![_ => INode::new(); MAX_INODE_NUMBER]),
+            nodes: SpinLock::new(array![_ => INode::new(); MAX_INODE_NUMBER], "icache"),
         }
     }
 

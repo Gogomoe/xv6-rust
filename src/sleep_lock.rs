@@ -1,12 +1,11 @@
 use core::cell::{Cell, UnsafeCell};
 use core::ops::{Deref, DerefMut};
 
-use spin::Mutex;
-
 use crate::process::{CPU_MANAGER, PROCESS_MANAGER};
+use crate::spin_lock::SpinLock;
 
 pub struct SleepLock<T: ?Sized> {
-    lock: Mutex<()>,
+    lock: SpinLock<()>,
     locked: Cell<bool>,
     data: UnsafeCell<T>,
 }
@@ -16,7 +15,7 @@ unsafe impl<T: ?Sized + Send> Sync for SleepLock<T> {}
 impl<T> SleepLock<T> {
     pub const fn new(data: T) -> Self {
         Self {
-            lock: Mutex::new(()),
+            lock: SpinLock::new((), "sleeplock"),
             locked: Cell::new(false),
             data: UnsafeCell::new(data),
         }

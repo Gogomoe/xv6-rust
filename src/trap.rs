@@ -1,5 +1,3 @@
-use spin::Mutex;
-
 use crate::console::uart::uart_intr;
 use crate::driver::DISK;
 use crate::memory::layout::{UART0_IRQ, VIRTIO0_IRQ};
@@ -7,8 +5,9 @@ use crate::plic::{plic_claim, plic_complete};
 use crate::process::{cpu_id, CPU_MANAGER, PROCESS_MANAGER};
 use crate::process::process::ProcessState::RUNNING;
 use crate::riscv::{intr_get, read_scause, read_sepc, read_sip, read_sstatus, read_stval, SSTATUS_SPP, write_sepc, write_sip, write_sstatus, write_stvec};
+use crate::spin_lock::SpinLock;
 
-pub static TICKS: Mutex<usize> = Mutex::new(0);
+pub static TICKS: SpinLock<usize> = SpinLock::new(0, "ticks");
 
 extern {
     fn kernelvec();

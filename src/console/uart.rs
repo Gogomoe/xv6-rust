@@ -2,10 +2,9 @@
 
 use core::ptr;
 
-use spin::Mutex;
-
 use crate::console::console_intr;
 use crate::process::PROCESS_MANAGER;
+use crate::spin_lock::SpinLock;
 
 const UART0: usize = 0x10000000;
 
@@ -25,7 +24,7 @@ const LSR: usize = 5;                 /* line status register */
 const LSR_RX_READY: u8 = 1 << 0;   /* input is waiting to be read from RHR */
 const LSR_TX_IDLE: u8 = 1 << 5;    /* THR can accept another character to send */
 
-static UART_LOCK: Mutex<()> = Mutex::new(());
+static UART_LOCK: SpinLock<()> = SpinLock::new((), "uart");
 const UART_TX_BUF_SIZE: usize = 32;
 const UART_TX_BUF: [u8; UART_TX_BUF_SIZE] = [0; UART_TX_BUF_SIZE];
 static mut UART_TX_W: usize = 0; /* write next to uart_tx_buf[uart_tx_w++] */

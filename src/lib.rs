@@ -29,6 +29,7 @@ mod process;
 mod param;
 mod trap;
 mod plic;
+mod spin_lock;
 mod sleep_lock;
 mod driver;
 mod file_system;
