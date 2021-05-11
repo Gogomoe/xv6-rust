@@ -133,7 +133,6 @@ impl BlockCache {
 
     pub fn read(&self, dev: u32, block_no: u32) -> BufferGuard {
         let buffer = self.get(dev, block_no);
-        let lock_guard = self.lock.lock();
         let buffers = unsafe { self.buffers.get().as_mut().unwrap() };
         let valid = &mut buffers[buffer.index].valid;
         if !*valid {
@@ -142,7 +141,6 @@ impl BlockCache {
             }
             *valid = true;
         }
-        drop(lock_guard);
         return buffer;
     }
 
