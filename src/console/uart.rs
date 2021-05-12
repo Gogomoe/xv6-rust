@@ -103,7 +103,7 @@ pub fn uart_start() {
 
         // maybe uartputc() is waiting for space in the buffer.
         unsafe {
-            PROCESS_MANAGER.wakeup(&UART_TX_R as *const _ as usize);
+            PROCESS_MANAGER.wake_up(&UART_TX_R as *const _ as usize);
         }
 
         write_reg!(THR, c);

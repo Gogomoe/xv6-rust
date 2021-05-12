@@ -68,7 +68,7 @@ pub fn console_intr(char: u8) {
 
                 if char == b'\n' || char == CTRL_D || console.edit == console.read + INPUT_BUFFER {
                     console.write = console.edit;
-                    PROCESS_MANAGER.wakeup(&console.read as *const _ as usize)
+                    PROCESS_MANAGER.wake_up(&console.read as *const _ as usize)
                 }
             }
         }

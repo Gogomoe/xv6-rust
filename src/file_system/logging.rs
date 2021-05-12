@@ -145,7 +145,7 @@ impl Log {
                 // begin_op() may be waiting for log space,
                 // and decrementing log.outstanding has decreased
                 // the amount of reserved space.
-                PROCESS_MANAGER.wakeup(self as *const _ as usize);
+                PROCESS_MANAGER.wake_up(self as *const _ as usize);
             }
 
             drop(guard);
@@ -158,7 +158,7 @@ impl Log {
             self.commit();
             let guard = self.lock.lock();
             self.committing = false;
-            PROCESS_MANAGER.wakeup(self as *const _ as usize);
+            PROCESS_MANAGER.wake_up(self as *const _ as usize);
             drop(guard);
         }
     }

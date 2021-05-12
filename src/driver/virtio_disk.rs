@@ -295,7 +295,7 @@ impl Disk {
         assert!(!self.free[i]);
         (*self.desc.offset(i as isize)).addr = 0;
         self.free[i] = true;
-        PROCESS_MANAGER.wakeup(&self.free[0] as *const _ as usize);
+        PROCESS_MANAGER.wake_up(&self.free[0] as *const _ as usize);
     }
 
     pub unsafe fn intr(&mut self) {
@@ -308,7 +308,7 @@ impl Disk {
             assert_eq!(info.status, 0);
 
             info.disk.store(false, Ordering::SeqCst);
-            PROCESS_MANAGER.wakeup(info.buffer as usize);
+            PROCESS_MANAGER.wake_up(info.buffer as usize);
 
             self.used_idx = (self.used_idx + 1) % NUM as u16;
         }

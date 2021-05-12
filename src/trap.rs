@@ -160,7 +160,7 @@ pub unsafe fn kerneltrap() {
 
 unsafe fn clock_intr() {
     *TICKS.lock() += 1;
-    PROCESS_MANAGER.wakeup(&TICKS as *const _ as usize)
+    PROCESS_MANAGER.wake_up(&TICKS as *const _ as usize)
 }
 
 // check if it's an external interrupt or software interrupt,

@@ -45,7 +45,7 @@ impl<T: ?Sized> SleepLock<T> {
     }
 
     fn wakeup(&self) {
-        PROCESS_MANAGER.wakeup(self.locked.as_ptr() as usize);
+        PROCESS_MANAGER.wake_up(self.locked.as_ptr() as usize);
     }
 }
 

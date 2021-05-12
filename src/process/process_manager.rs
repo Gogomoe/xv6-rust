@@ -94,7 +94,7 @@ impl ProcessManager {
         }
     }
 
-    pub fn wakeup(&self, channel: usize) {
+    pub fn wake_up(&self, channel: usize) {
         for process in self.processes.iter() {
             let mut info_lock = process.info.lock();
             let info = &mut *info_lock;
