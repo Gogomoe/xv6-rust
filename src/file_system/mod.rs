@@ -7,8 +7,9 @@ pub use logging::LOG;
 pub mod buffer_cache;
 pub mod logging;
 pub mod inode;
-pub mod directory;
+pub mod path;
 
+pub const ROOT_INO: u32 = 1;
 pub const BLOCK_SIZE: usize = 1024;
 pub const FSMAGIC: u32 = 0x10203040;
 

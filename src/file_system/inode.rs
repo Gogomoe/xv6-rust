@@ -5,7 +5,7 @@ use core::ptr;
 use core::ptr::null_mut;
 
 use crate::file_system::{Block, BLOCK_CACHE, BLOCK_SIZE, DIRECTORY_COUNT, DIRECTORY_SIZE, Dirent, LOG, MAX_FILE_COUNT, SUPER_BLOCK, SuperBlock};
-use crate::file_system::directory::{FileStatus, TYPE_DIR};
+use crate::file_system::path::{FileStatus, TYPE_DIR};
 use crate::memory::{either_copy_in, either_copy_out};
 use crate::param::MAX_INODE_NUMBER;
 use crate::sleep_lock::{SleepLock, SleepLockGuard};
@@ -20,18 +20,18 @@ fn iblock(i: u32, sb: &SuperBlock) -> u32 {
 }
 
 pub struct INodeData {
-    dev: u32,
-    inum: u32,
-    ref_count: u32,
-    valid: bool,
+    pub dev: u32,
+    pub inum: u32,
+    pub ref_count: u32,
+    pub valid: bool,
 
-    types: u16,
-    major: u16,
-    minor: u16,
-    nlink: u16,
+    pub types: u16,
+    pub major: u16,
+    pub minor: u16,
+    pub nlink: u16,
 
-    size: u32,
-    addr: [u32; DIRECTORY_COUNT + 1],
+    pub size: u32,
+    pub addr: [u32; DIRECTORY_COUNT + 1],
 }
 
 impl INodeData {
@@ -343,7 +343,7 @@ impl ICache {
         panic!("no inodes");
     }
 
-    fn get(&self, dev: u32, inum: u32) -> &INode {
+    pub fn get(&self, dev: u32, inum: u32) -> &INode {
         let mut guard = self.nodes.lock();
         let nodes = &mut *guard;
 
@@ -366,7 +366,7 @@ impl ICache {
         }
 
         let i = empty.unwrap();
-        let ip = &mut nodes[i];
+        let ip = &nodes[i];
         let data = ip.data();
 
         data.dev = dev;
@@ -374,7 +374,7 @@ impl ICache {
         data.ref_count = 1;
         data.valid = false;
 
-        return unsafe { (ip as *const INode).as_ref().unwrap() };
+        return unsafe { (ip as *const INode).as_ref() }.unwrap();
     }
 
     // Copy a modified in-memory inode to disk.

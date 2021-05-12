@@ -15,6 +15,7 @@ use crate::process::trap_frame::TrapFrame;
 use crate::riscv::{intr_on, sfence_vma};
 use crate::spin_lock::SpinLock;
 use crate::trap::user_trap_return;
+use crate::file_system::path::find_inode;
 
 pub struct ProcessManager {
     processes: [Process; MAX_PROCESS_NUMBER],
@@ -161,8 +162,7 @@ impl ProcessManager {
         (*data.trap_frame).sp = PAGE_SIZE as u64;
 
         data.name = String::from("initcode");
-        // TODO
-        // data.current_dir = namei("/");
+        data.current_dir = find_inode(&String::from("/"));
 
         info.state = RUNNABLE;
 

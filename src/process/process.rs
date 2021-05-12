@@ -19,7 +19,7 @@ pub struct ProcessData {
     pub page_table: Option<ActivePageTable>,
     pub trap_frame: *mut TrapFrame,
     pub context: Context,
-    pub current_dir: *mut INode,
+    pub current_dir: Option<&'static INode>,
     pub name: String,
 
     // TODO, open file
@@ -35,7 +35,7 @@ impl ProcessData {
             page_table: None,
             trap_frame: null_mut(),
             context: Context::new(),
-            current_dir: null_mut(),
+            current_dir: None,
             name: String::new(),
         }
     }
