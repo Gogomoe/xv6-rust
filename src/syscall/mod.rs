@@ -33,7 +33,7 @@ pub fn system_call_init() {
 }
 
 pub fn system_call() {
-    let process = CPU_MANAGER.my_proc().unwrap();
+    let process = CPU_MANAGER.my_proc();
     let trap_frame = unsafe { process.data().trap_frame.as_mut() }.unwrap();
     let num = trap_frame.a7 as usize;
 

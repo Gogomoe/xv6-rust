@@ -259,7 +259,7 @@ impl ProcessManager {
     // An exited process remains in the zombie state
     // until its parent calls wait().
     pub fn exit(&self, exit_state: i32) {
-        let process = CPU_MANAGER.my_proc().unwrap();
+        let process = CPU_MANAGER.my_proc();
 
         assert_ne!(process as *const _, self.init_process() as *const _);
 
@@ -337,7 +337,7 @@ unsafe fn fork_return() {
     static mut IS_FIRST_PROCESS: bool = true;
 
     // Still holding p->lock from scheduler.
-    CPU_MANAGER.my_proc().unwrap().lock.unlock();
+    CPU_MANAGER.my_proc().lock.unlock();
 
     if IS_FIRST_PROCESS {
         // File system initialization must be run in the context of a

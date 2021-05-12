@@ -37,7 +37,7 @@ pub unsafe fn usertrap() {
     let kernelvec = kernelvec as usize;
     write_stvec(kernelvec);
 
-    let process = CPU_MANAGER.my_proc().unwrap();
+    let process = CPU_MANAGER.my_proc();
     let data = process.data();
     let trap_frame = data.trap_frame.as_mut().unwrap();
 
@@ -82,7 +82,7 @@ pub unsafe fn usertrap() {
 }
 
 pub unsafe fn user_trap_return() {
-    let process = CPU_MANAGER.my_proc().unwrap();
+    let process = CPU_MANAGER.my_proc();
 
     // we're about to switch the destination of traps from
     // kerneltrap() to usertrap(), so turn off interrupts until

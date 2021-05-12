@@ -82,8 +82,7 @@ impl Cpu {
     }
 
     pub fn yield_self(&mut self) {
-        let process = self.my_proc();
-        let process = unsafe { process.as_ref().unwrap() };
+        let process = unsafe { self.my_proc().as_ref() }.unwrap();
         let guard = process.lock.lock();
         assert_eq!(process.info().state, RUNNING);
         process.info().state = RUNNABLE;
@@ -141,9 +140,9 @@ impl CpuManager {
         }
     }
 
-    pub fn my_proc(&self) -> Option<&Process> {
+    pub fn my_proc(&self) -> &Process {
         let cpu = self.my_cpu_mut();
-        return unsafe { cpu.my_proc().as_ref() };
+        return unsafe { cpu.my_proc().as_ref() }.unwrap();
     }
 }
 
