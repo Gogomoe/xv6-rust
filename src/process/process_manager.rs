@@ -60,6 +60,13 @@ impl ProcessManager {
         }
     }
 
+    // Per-CPU process scheduler.
+    // Each CPU calls scheduler() after setting itself up.
+    // Scheduler never returns.  It loops, doing:
+    //  - choose a process to run.
+    //  - swtch to start running that process.
+    //  - eventually that process transfers control
+    //    via swtch back to the scheduler.
     pub unsafe fn scheduler(&self) -> ! {
         extern {
             fn swtch(old: *mut Context, new: *mut Context);
@@ -69,26 +76,32 @@ impl ProcessManager {
         cpu.process = null_mut();
 
         loop {
+            // Avoid deadlock by ensuring that devices can interrupt.
             intr_on();
 
-            let mut found = false;
+            let mut process_count = 0;
             for process in self.processes.iter() {
                 let guard = process.lock.lock();
                 let info = process.info();
+                if info.state != UNUSED {
+                    process_count += 1;
+                }
                 if info.state == RUNNABLE {
+                    // Switch to chosen process.  It is the process's job
+                    // to release its lock and then reacquire it
+                    // before jumping back to us.
                     info.state = RUNNING;
                     cpu.process = process as *const Process;
 
-                    let data = process.data();
-                    swtch(&mut cpu.context, &mut data.context);
+                    swtch(&mut cpu.context, &mut process.data().context);
 
+                    // Process is done running for now.
+                    // It should have changed its p->state before coming back.
                     cpu.process = null_mut();
-
-                    found = true;
                 }
                 drop(guard);
             }
-            if !found {
+            if process_count <= 2 { // only init and sh exist
                 intr_on();
                 llvm_asm!("wfi"::::"volatile");
             }
