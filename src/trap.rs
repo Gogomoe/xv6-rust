@@ -7,8 +7,9 @@ use crate::memory::layout::{TRAMPOLINE, TRAPFRAME, UART0_IRQ, VIRTIO0_IRQ};
 use crate::plic::{plic_claim, plic_complete};
 use crate::process::{cpu_id, CPU_MANAGER, PROCESS_MANAGER};
 use crate::process::process::ProcessState::RUNNING;
-use crate::riscv::{intr_get, intr_off, read_satp, read_scause, read_sepc, read_sip, read_sstatus, read_stval, read_tp, SSTATUS_SPIE, SSTATUS_SPP, write_sepc, write_sip, write_sstatus, write_stvec};
+use crate::riscv::{intr_get, intr_off, intr_on, read_satp, read_scause, read_sepc, read_sip, read_sstatus, read_stval, read_tp, SSTATUS_SPIE, SSTATUS_SPP, write_sepc, write_sip, write_sstatus, write_stvec};
 use crate::spin_lock::SpinLock;
+use crate::syscall::system_call;
 
 pub static TICKS: SpinLock<usize> = SpinLock::new(0, "ticks");
 
@@ -36,7 +37,7 @@ pub unsafe fn usertrap() {
     let kernelvec = kernelvec as usize;
     write_stvec(kernelvec);
 
-    let process = CPU_MANAGER.my_proc().as_ref().unwrap();
+    let process = CPU_MANAGER.my_proc().unwrap();
     let data = process.data.get().as_mut().unwrap();
     let trap_frame = data.trap_frame.as_mut().unwrap();
 
@@ -47,19 +48,41 @@ pub unsafe fn usertrap() {
 
     if read_scause() == 8 {
         // system call
+
+        if (*process.info.lock()).killed {
+            PROCESS_MANAGER.exit(-1);
+        }
+
+        // sepc points to the ecall instruction,
+        // but we want to return to the next instruction.
+        trap_frame.epc += 4;
+
+        // an interrupt will change sstatus &c registers,
+        // so don't enable until done with those registers.
+        intr_on();
+
+        system_call();
     } else if which_dev != 0 {
         // ok
     } else {
         println!("unexpected scause {:x} pid={}", read_scause(), (*process.info.lock()).pid);
         println!("sepc={:x} stval={:x}", read_sepc(), read_stval());
-        // TODO kill p
+        (*process.info.lock()).killed = true;
     }
 
-    todo!()
+    if (*process.info.lock()).killed {
+        PROCESS_MANAGER.exit(-1);
+    }
+
+    if which_dev == 2 {
+        CPU_MANAGER.my_cpu_mut().yield_self();
+    }
+
+    user_trap_return();
 }
 
 pub unsafe fn user_trap_return() {
-    let process = CPU_MANAGER.my_proc().as_ref().unwrap();
+    let process = CPU_MANAGER.my_proc().unwrap();
 
     // we're about to switch the destination of traps from
     // kerneltrap() to usertrap(), so turn off interrupts until

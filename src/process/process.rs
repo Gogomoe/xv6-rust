@@ -55,8 +55,9 @@ pub struct ProcessInfo {
     pub state: ProcessState,
     pub channel: usize,
     pub pid: usize,
-
-    // TODO parent, killed, exit state
+    pub killed: bool,
+    pub exit_state: i32,
+    pub parent: Option<&'static Process>,
 }
 
 impl ProcessInfo {
@@ -65,6 +66,9 @@ impl ProcessInfo {
             state: ProcessState::UNUSED,
             channel: 0,
             pid: 0,
+            killed: false,
+            exit_state: 0,
+            parent: None,
         }
     }
 }

@@ -142,9 +142,9 @@ impl CpuManager {
         }
     }
 
-    pub fn my_proc(&self) -> *const Process {
+    pub fn my_proc(&self) -> Option<&Process> {
         let cpu = self.my_cpu_mut();
-        return cpu.my_proc();
+        return unsafe { cpu.my_proc().as_ref() };
     }
 }
 
