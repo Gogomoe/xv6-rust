@@ -99,6 +99,7 @@ pub unsafe fn main() -> ! {
         crate::plic::plic_hart_init();
         DISK.init();
         PROCESS_MANAGER.user_init();
+        crate::syscall::system_call_init();
 
         STARTED.store(true, Ordering::SeqCst);
         println!("xv6 kernel boots successfully");

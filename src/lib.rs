@@ -4,6 +4,7 @@
 #![feature(core_intrinsics)]
 #![feature(alloc_error_handler)]
 #![feature(const_fn_union)]
+#![feature(fn_traits)]
 
 #[macro_use]
 extern crate alloc;

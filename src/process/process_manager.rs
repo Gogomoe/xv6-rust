@@ -37,7 +37,7 @@ impl ProcessManager {
         }
     }
 
-    fn init_process(&self) -> &Process {
+    fn init_process(&self) -> &'static Process {
         unsafe { (*self.init_process.get()).as_ref() }.unwrap()
     }
 
@@ -108,6 +108,8 @@ impl ProcessManager {
         }
     }
 
+    // Wake up all processes sleeping on chan.
+    // Must be called without any p->lock.
     pub fn wake_up(&self, channel: usize) {
         for process in self.processes.iter() {
             let guard = process.lock.lock();
@@ -119,6 +121,8 @@ impl ProcessManager {
         }
     }
 
+    // Wake up p if it is sleeping in wait(); used by exit().
+    // Caller must hold p->lock.
     pub fn wake_up_process(&self, process: &Process) {
         assert!(process.lock.holding());
         if process.info().channel == process as *const _ as usize && process.info().state == SLEEPING {
@@ -126,6 +130,9 @@ impl ProcessManager {
         }
     }
 
+    // Print a process listing to console.  For debugging.
+    // Runs when user types ^P on console.
+    // No lock to avoid wedging a stuck machine further.
     pub fn print_processes(&self) {
         for process in self.processes.iter() {
             let guard = process.lock.lock();
@@ -162,6 +169,10 @@ impl ProcessManager {
         drop(guard);
     }
 
+    // Look in the process table for an UNUSED proc.
+    // If found, initialize state required to run in the kernel,
+    // and return with p->lock held.
+    // If there are no free procs, or a memory allocation fails, return 0.
     pub fn alloc_process(&self) -> Option<&Process> {
         for process in self.processes.iter() {
             let guard = process.lock.lock();
@@ -244,6 +255,9 @@ impl ProcessManager {
         info.exit_state = 0;
     }
 
+    // Exit the current process.  Does not return.
+    // An exited process remains in the zombie state
+    // until its parent calls wait().
     pub fn exit(&self, exit_state: i32) {
         let process = CPU_MANAGER.my_proc().unwrap();
 
@@ -294,8 +308,26 @@ impl ProcessManager {
         panic!("zombie exit");
     }
 
+    // Pass p's abandoned children to init.
+    // Caller must hold p->lock.
     fn reparent(&self, process: &Process) {
-        todo!();
+        for pp in self.processes.iter() {
+            // this code uses pp->parent without holding pp->lock.
+            // acquiring the lock first could cause a deadlock
+            // if pp or a child of pp were also in exit()
+            // and about to try to lock p.
+            if pp.info().parent.map_or(false, |it| it as *const _ == process as *const _) {
+                // pp->parent can't change between the check and the acquire()
+                // because only the parent changes it, and we're the parent.
+                let guard = pp.lock.lock();
+                pp.info().parent = Some(self.init_process());
+                // we should wake up init here, but that would require
+                // initproc->lock, which would be a deadlock, since we hold
+                // the lock on one of init's children (pp). this is why
+                // exit() always wakes init (before acquiring any locks).
+                drop(guard);
+            }
+        }
     }
 }
 
