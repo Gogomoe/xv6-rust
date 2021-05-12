@@ -38,7 +38,7 @@ pub unsafe fn usertrap() {
     write_stvec(kernelvec);
 
     let process = CPU_MANAGER.my_proc().unwrap();
-    let data = process.data.get().as_mut().unwrap();
+    let data = process.data();
     let trap_frame = data.trap_frame.as_mut().unwrap();
 
     // save user program counter.
@@ -49,7 +49,7 @@ pub unsafe fn usertrap() {
     if read_scause() == 8 {
         // system call
 
-        if (*process.info.lock()).killed {
+        if process.info().killed {
             PROCESS_MANAGER.exit(-1);
         }
 
@@ -65,12 +65,12 @@ pub unsafe fn usertrap() {
     } else if which_dev != 0 {
         // ok
     } else {
-        println!("unexpected scause {:x} pid={}", read_scause(), (*process.info.lock()).pid);
+        println!("unexpected scause {:x} pid={}", read_scause(), process.info().pid);
         println!("sepc={:x} stval={:x}", read_sepc(), read_stval());
-        (*process.info.lock()).killed = true;
+        process.info().killed = true;
     }
 
-    if (*process.info.lock()).killed {
+    if process.info().killed {
         PROCESS_MANAGER.exit(-1);
     }
 
@@ -97,7 +97,7 @@ pub unsafe fn user_trap_return() {
 
     // set up trapframe values that uservec will need when
     // the process next re-enters the kernel.
-    let data = process.data.get().as_mut().unwrap();
+    let data = process.data();
     let trap_frame = data.trap_frame.as_mut().unwrap();
     trap_frame.kernel_satp = read_satp() as u64;
     trap_frame.kernel_sp = (data.kernel_stack + PAGE_SIZE) as u64;
@@ -150,7 +150,7 @@ pub unsafe fn kerneltrap() {
 
     let cpu = CPU_MANAGER.my_cpu_mut();
     let process = cpu.my_proc();
-    if which_dev == 2 && !process.is_null() && process.as_ref().unwrap().info.lock().state == RUNNING {
+    if which_dev == 2 && !process.is_null() && process.as_ref().unwrap().info().state == RUNNING {
         cpu.yield_self();
     }
 

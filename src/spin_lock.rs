@@ -33,13 +33,13 @@ impl<T: ?Sized> SpinLock<T> {
         }
     }
 
-    unsafe fn holding(&self) -> bool {
+    pub fn holding(&self) -> bool {
         self.lock.load(Ordering::Relaxed) && (self.cpuid.get() == cpu_id() as isize)
     }
 
     fn acquire(&self) {
         CPU_MANAGER.my_cpu_mut().push_off();
-        if unsafe { self.holding() } {
+        if self.holding() {
             panic!("spinlock {} acquire", self.name);
         }
         while self.lock.compare_and_swap(false, true, Ordering::Acquire) {}
@@ -48,7 +48,7 @@ impl<T: ?Sized> SpinLock<T> {
     }
 
     fn release(&self) {
-        if unsafe { !self.holding() } {
+        if !self.holding() {
             panic!("spinlock {} release", self.name);
         }
         self.cpuid.set(-1);

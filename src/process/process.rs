@@ -74,8 +74,9 @@ impl ProcessInfo {
 }
 
 pub struct Process {
-    pub data: UnsafeCell<ProcessData>,
-    pub info: SpinLock<ProcessInfo>,
+    pub lock: SpinLock<()>,
+    data: UnsafeCell<ProcessData>,
+    info: UnsafeCell<ProcessInfo>,
 }
 
 unsafe impl Sync for Process {}
@@ -83,8 +84,17 @@ unsafe impl Sync for Process {}
 impl Process {
     pub const fn new() -> Process {
         Process {
+            lock: SpinLock::new((), "process"),
             data: UnsafeCell::new(ProcessData::new()),
-            info: SpinLock::new(ProcessInfo::new(), "process"),
+            info: UnsafeCell::new(ProcessInfo::new()),
         }
+    }
+
+    pub fn data(&self) -> &mut ProcessData {
+        unsafe { self.data.get().as_mut() }.unwrap()
+    }
+
+    pub fn info(&self) -> &mut ProcessInfo {
+        unsafe { self.info.get().as_mut() }.unwrap()
     }
 }

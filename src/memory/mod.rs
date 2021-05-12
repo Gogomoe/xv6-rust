@@ -42,7 +42,7 @@ pub fn page_round_down(addr: usize) -> usize {
 pub fn either_copy_out(user_dst: bool, dst: usize, src: usize, len: usize) -> bool {
     let proc = CPU_MANAGER.my_proc().unwrap();
     return if user_dst {
-        let data = unsafe { proc.data.get().as_ref() }.unwrap();
+        let data = proc.data();
         let pt = data.page_table.as_ref().unwrap();
         unsafe {
             copy_out(pt, dst, src, len)
@@ -61,7 +61,7 @@ pub fn either_copy_out(user_dst: bool, dst: usize, src: usize, len: usize) -> bo
 pub fn either_copy_in(user_src: bool, dst: usize, src: usize, len: usize) -> bool {
     let proc = CPU_MANAGER.my_proc().unwrap();
     return if user_src {
-        let data = unsafe { proc.data.get().as_ref() }.unwrap();
+        let data = proc.data();
         let pt = data.page_table.as_ref().unwrap();
         unsafe {
             copy_in(pt, dst, src, len)

@@ -3,7 +3,7 @@ use core::ptr::null_mut;
 
 use crate::param::MAX_CPU_NUMBER;
 use crate::process::context::Context;
-use crate::process::process::{Process, ProcessInfo};
+use crate::process::process::Process;
 use crate::process::process::ProcessState::{RUNNABLE, RUNNING, SLEEPING};
 use crate::riscv::{intr_get, intr_off, intr_on, read_tp};
 use crate::spin_lock::SpinLockGuard;
@@ -65,53 +65,52 @@ impl Cpu {
         }
     }
 
-    pub unsafe fn scheduled(&mut self, guard: &SpinLockGuard<ProcessInfo>) {
+    pub unsafe fn scheduled(&mut self) {
         extern {
             fn swtch(old: *mut Context, new: *mut Context);
         }
-        let proc = self.my_proc();
-        let info = &**guard;
-        assert!(!proc.is_null());
-        assert_ne!(info.state, RUNNING);
+        let process = self.my_proc().as_ref().unwrap();
+
+        assert!(process.lock.holding());
+        assert_eq!(self.off_depth, 1);
+        assert_ne!(process.info().state, RUNNING);
         assert!(!intr_get());
 
-        let proc = proc.as_ref().unwrap();
         let old_intr = self.interrupt_enable;
-
-        let data = proc.data.get().as_mut().unwrap();
-        swtch(&mut data.context, &mut self.context);
+        swtch(&mut process.data().context, &mut self.context);
         self.interrupt_enable = old_intr;
     }
 
     pub fn yield_self(&mut self) {
-        let proc = self.my_proc();
-        let proc = unsafe { proc.as_ref().unwrap() };
-        let mut guard = proc.info.lock();
-        assert_eq!(guard.state, RUNNING);
-        guard.state = RUNNABLE;
+        let process = self.my_proc();
+        let process = unsafe { process.as_ref().unwrap() };
+        let guard = process.lock.lock();
+        assert_eq!(process.info().state, RUNNING);
+        process.info().state = RUNNABLE;
         unsafe {
-            self.scheduled(&guard);
+            self.scheduled();
         }
+        drop(guard);
     }
 
     /// NOTICE: acquire lock after sleep
     pub fn sleep<T>(&mut self, channel: usize, guard: SpinLockGuard<T>) {
         let proc = self.my_proc();
         assert!(!proc.is_null());
-        let proc = unsafe { proc.as_ref().unwrap() };
+        let process = unsafe { proc.as_ref().unwrap() };
 
-        let mut info_lock = proc.info.lock();
+        let proc_guard = process.lock.lock();
         drop(guard);
 
-        info_lock.channel = channel;
-        info_lock.state = SLEEPING;
+        process.info().channel = channel;
+        process.info().state = SLEEPING;
 
         unsafe {
-            self.scheduled(&info_lock);
+            self.scheduled();
         }
 
-        info_lock.channel = 0;
-        drop(info_lock);
+        process.info().channel = 0;
+        drop(proc_guard);
     }
 }
 
