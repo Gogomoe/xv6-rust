@@ -1,11 +1,13 @@
 use alloc::collections::BTreeMap;
+use alloc::string::String;
 
 use lazy_static::lazy_static;
 
+use crate::memory::copy_in_string;
 use crate::process::CPU_MANAGER;
-use crate::syscall::file::sys_exec;
+use crate::syscall::exec::sys_exec;
 
-pub mod file;
+pub mod exec;
 
 #[derive(Clone)]
 pub struct SystemCall {
@@ -46,4 +48,30 @@ pub fn system_call() {
             u64::max_value()
         }
     }
+}
+
+fn read_arg_content(pos: usize) -> u64 {
+    let process = CPU_MANAGER.my_proc();
+    unsafe {
+        match pos {
+            0 => { (*process.data().trap_frame).a0 }
+            1 => { (*process.data().trap_frame).a1 }
+            2 => { (*process.data().trap_frame).a2 }
+            3 => { (*process.data().trap_frame).a3 }
+            4 => { (*process.data().trap_frame).a4 }
+            5 => { (*process.data().trap_frame).a5 }
+            _ => { panic!("out of arg bound {}", pos) }
+        }
+    }
+}
+
+pub fn read_arg_usize(pos: usize) -> usize {
+    read_arg_content(pos) as usize
+}
+
+pub fn read_arg_string(pos: usize) -> Option<String> {
+    let page_table = CPU_MANAGER.my_proc().data().page_table.as_ref().unwrap();
+    let user_addr = read_arg_usize(pos);
+
+    return copy_in_string(page_table, user_addr);
 }

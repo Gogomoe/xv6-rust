@@ -1,4 +1,8 @@
+use alloc::string::String;
+use alloc::vec::Vec;
 use core::ptr;
+
+use cstr_core::{c_char, CStr};
 
 pub use kernel_virtual_memory::KERNEL_PAGETABLE;
 pub use physical_memory::Frame;
@@ -63,9 +67,7 @@ pub fn either_copy_in(user_src: bool, dst: usize, src: usize, len: usize) -> boo
     return if user_src {
         let data = proc.data();
         let pt = data.page_table.as_ref().unwrap();
-        unsafe {
-            copy_in(pt, dst, src, len)
-        }
+        copy_in(pt, dst, src, len)
     } else {
         unsafe {
             ptr::copy(src as *mut u8, dst as *mut u8, len);
@@ -103,7 +105,7 @@ pub unsafe fn copy_out(pt: &ActivePageTable, mut dst_va: usize, mut src: usize, 
 // Copy from user to kernel.
 // Copy len bytes to dst from virtual address srcva in a given page table.
 // Return 0 on success, -1 on error.
-pub unsafe fn copy_in(pt: &ActivePageTable, mut dst: usize, mut src_va: usize, mut len: usize) -> bool {
+pub fn copy_in(pt: &ActivePageTable, mut dst: usize, mut src_va: usize, mut len: usize) -> bool {
     while len > 0 {
         let va0 = page_round_down(src_va);
         let pa0 = pt.translate(va0);
@@ -117,11 +119,46 @@ pub unsafe fn copy_in(pt: &ActivePageTable, mut dst: usize, mut src_va: usize, m
             n = len;
         }
 
-        ptr::copy((pa0 + src_va - va0) as *const u8, dst as *mut u8, n);
+        unsafe {
+            ptr::copy((pa0 + src_va - va0) as *const u8, dst as *mut u8, n);
+        }
 
         len -= n;
         dst += n;
         src_va = va0 + PAGE_SIZE;
     }
     true
+}
+
+// Copy a null-terminated string from user to kernel.
+// Copy bytes to dst from virtual address srcva in a given page table,
+// until a '\0', or max.
+// Return 0 on success, -1 on error.
+pub fn copy_in_string(pt: &ActivePageTable, mut va: usize) -> Option<String> {
+    let mut pa = match pt.translate(va) {
+        Some(x) => x,
+        None => return None,
+    };
+    let mut bytes: Vec<u8> = Vec::new();
+    loop {
+        let byte = unsafe { *(pa as *const u8) }.clone();
+        bytes.push(byte);
+        if byte == b'\0' {
+            break;
+        }
+        va += 1;
+        pa += 1;
+        if va % PAGE_SIZE == 0 {
+            pa = match pt.translate(va) {
+                Some(x) => x,
+                None => return None
+            }
+        }
+    }
+
+    unsafe {
+        let result = CStr::from_ptr(bytes.as_mut_ptr() as *mut c_char).to_string_lossy().into_owned();
+
+        Some(result)
+    }
 }

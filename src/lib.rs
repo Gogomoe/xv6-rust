@@ -12,6 +12,7 @@ extern crate alloc;
 extern crate array_macro;
 #[macro_use]
 extern crate bitflags;
+extern crate cstr_core;
 extern crate linked_list_allocator;
 
 global_asm!(include_str!("asm/entry.S"));

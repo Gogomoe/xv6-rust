@@ -144,7 +144,7 @@ pub unsafe fn kerneltrap() {
     let which_dev = dev_intr();
     if which_dev == 0 {
         println!("scause {}", scause);
-        println!("sepc={} stval={}", read_sepc(), read_stval());
+        println!("sepc={:x} stval={:x}", read_sepc(), read_stval());
         panic!("kerneltrap");
     }
 
