@@ -3,8 +3,9 @@ use core::cell::UnsafeCell;
 use core::ptr::null_mut;
 
 use crate::file_system::file_system_init;
+use crate::file_system::path::find_inode;
 use crate::memory::{KERNEL_PAGETABLE, Page, PAGE_SIZE, PHYSICAL_MEMORY, user_virtual_memory};
-use crate::memory::layout::{TRAMPOLINE, TRAPFRAME};
+use crate::memory::layout::{KERNEL_STACK_PAGE_COUNT, TRAMPOLINE, TRAPFRAME};
 use crate::memory::page_table::PageEntryFlags;
 use crate::param::{MAX_PROCESS_NUMBER, ROOT_DEV};
 use crate::process::context::Context;
@@ -15,7 +16,6 @@ use crate::process::trap_frame::TrapFrame;
 use crate::riscv::{intr_on, sfence_vma};
 use crate::spin_lock::SpinLock;
 use crate::trap::user_trap_return;
-use crate::file_system::path::find_inode;
 
 pub struct ProcessManager {
     processes: [Process; MAX_PROCESS_NUMBER],
@@ -46,14 +46,20 @@ impl ProcessManager {
         let mut pt_lock = KERNEL_PAGETABLE.lock();
         let page_table = &mut *pt_lock;
 
+        let rw = PageEntryFlags::READABLE | PageEntryFlags::WRITEABLE;
+        let top_guard = TRAMPOLINE - PAGE_SIZE;
+
         for i in 0..MAX_PROCESS_NUMBER {
-            let pa = PHYSICAL_MEMORY.alloc().unwrap();
-            let va = TRAMPOLINE - (i + 1) * 2 * PAGE_SIZE;
-            let rw = PageEntryFlags::READABLE | PageEntryFlags::WRITEABLE;
-            page_table.map(Page::from_virtual_address(va), pa, rw);
+            let stack_top = top_guard - i * (KERNEL_STACK_PAGE_COUNT + 1) * PAGE_SIZE;
+
+            for j in 0..KERNEL_STACK_PAGE_COUNT {
+                let pa = PHYSICAL_MEMORY.alloc().unwrap();
+                let va = stack_top - (j + 1) * PAGE_SIZE;
+                page_table.map(Page::from_virtual_address(va), pa, rw);
+            }
 
             let process = self.processes[i].data();
-            process.kernel_stack = va;
+            process.kernel_stack = stack_top;
         }
 
         unsafe {
@@ -205,7 +211,7 @@ impl ProcessManager {
                 // which returns to user space.
                 data.context.clear();
                 data.context.ra = fork_return as u64;
-                data.context.sp = (data.kernel_stack + PAGE_SIZE) as u64;
+                data.context.sp = data.kernel_stack as u64;
 
                 drop(guard);
                 return Some(process);

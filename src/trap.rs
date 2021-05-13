@@ -2,8 +2,8 @@ use core::mem::transmute;
 
 use crate::console::uart::uart_intr;
 use crate::driver::DISK;
-use crate::memory::{make_satp, PAGE_SIZE};
 use crate::memory::layout::{TRAMPOLINE, TRAPFRAME, UART0_IRQ, VIRTIO0_IRQ};
+use crate::memory::make_satp;
 use crate::plic::{plic_claim, plic_complete};
 use crate::process::{cpu_id, CPU_MANAGER, PROCESS_MANAGER};
 use crate::process::process::ProcessState::RUNNING;
@@ -100,7 +100,7 @@ pub unsafe fn user_trap_return() {
     let data = process.data();
     let trap_frame = data.trap_frame.as_mut().unwrap();
     trap_frame.kernel_satp = read_satp() as u64;
-    trap_frame.kernel_sp = (data.kernel_stack + PAGE_SIZE) as u64;
+    trap_frame.kernel_sp = data.kernel_stack as u64;
     trap_frame.kernel_trap = usertrap as u64;
     trap_frame.kernel_hartid = read_tp() as u64;
 

@@ -17,3 +17,5 @@ pub const TRAPFRAME: usize = TRAMPOLINE - PAGE_SIZE;
 
 pub const KERNEL_HEAP_START: usize = 0x40000000;
 pub const KERNEL_HEAP_SIZE: usize = 1 * 1024 * 1024;
+
+pub const KERNEL_STACK_PAGE_COUNT: usize = 4;
