@@ -1,0 +1,48 @@
+[config]
+default_to_workspace = false
+
+[tasks.build_xv6_rust]
+script = [
+    """
+    cargo rustc --package xv6_rust --bin xv6_rust --target riscv64gc-unknown-none-elf \
+    -- -C link-arg=-Tbin/xv6_rust/src/ld/kernel.ld
+    """,
+    """
+    riscv64-unknown-elf-objdump -S target/riscv64gc-unknown-none-elf/debug/xv6_rust > kernel.S
+    """
+]
+
+[tasks.build_all]
+run_task = [
+    { name = "build_xv6_rust" }
+]
+
+[tasks.run]
+dependencies = ["build_xv6_rust"]
+script = [
+    """
+    qemu-system-riscv64 \
+    -machine virt -bios none \
+    -m 128M -smp 3 -nographic \
+    -drive file=fs.img,if=none,format=raw,id=x0 \
+    -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
+    -kernel target/riscv64gc-unknown-none-elf/debug/xv6_rust
+    """
+]
+
+[tasks.debug]
+dependencies = ["build_xv6_rust"]
+script = [
+    """
+    echo "*** Now run 'gdb' in another window."
+    """,
+    """
+    qemu-system-riscv64 \
+    -machine virt -bios none \
+    -m 128M -smp 3 -nographic \
+    -drive file=fs.img,if=none,format=raw,id=x0 \
+    -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
+    -kernel target/riscv64gc-unknown-none-elf/debug/xv6_rust \
+    -S -gdb tcp::26000
+    """
+]

@@ -13,7 +13,9 @@ extern crate array_macro;
 #[macro_use]
 extern crate bitflags;
 extern crate cstr_core;
+extern crate file_system_lib;
 extern crate linked_list_allocator;
+extern crate param_lib;
 
 global_asm!(include_str!("asm/entry.S"));
 global_asm!(include_str!("asm/kernelvec.S"));
@@ -28,7 +30,6 @@ mod console;
 mod start;
 mod memory;
 mod process;
-mod param;
 mod trap;
 mod plic;
 mod spin_lock;

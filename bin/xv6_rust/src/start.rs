@@ -3,8 +3,8 @@ use core::sync::atomic::{AtomicBool, Ordering};
 use crate::driver::DISK;
 use crate::memory::layout::CLINT;
 use crate::memory::PHYSICAL_MEMORY;
-use crate::param::MAX_CPU_NUMBER;
 use crate::process::PROCESS_MANAGER;
+use param_lib::MAX_CPU_NUMBER;
 
 #[no_mangle]
 pub unsafe fn start() -> ! {

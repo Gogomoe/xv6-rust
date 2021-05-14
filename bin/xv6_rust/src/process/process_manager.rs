@@ -2,12 +2,13 @@ use alloc::string::String;
 use core::cell::UnsafeCell;
 use core::ptr::null_mut;
 
+use param_lib::{MAX_PROCESS_NUMBER, ROOT_DEV};
+
 use crate::file_system::file_system_init;
 use crate::file_system::path::find_inode;
 use crate::memory::{KERNEL_PAGETABLE, Page, PAGE_SIZE, PHYSICAL_MEMORY, user_virtual_memory};
 use crate::memory::layout::{KERNEL_STACK_PAGE_COUNT, TRAMPOLINE, TRAPFRAME};
 use crate::memory::page_table::PageEntryFlags;
-use crate::param::{MAX_PROCESS_NUMBER, ROOT_DEV};
 use crate::process::context::Context;
 use crate::process::CPU_MANAGER;
 use crate::process::process::Process;

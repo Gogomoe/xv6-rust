@@ -4,13 +4,14 @@ use core::intrinsics::size_of;
 
 use cstr_core::CString;
 
+use param_lib::MAX_ARG;
+
 use crate::file_system::elf::{ELF_MAGIC, ELF_PROG_LOAD, ElfHeader, ProgramHeader};
 use crate::file_system::inode::{ICACHE, INode};
 use crate::file_system::LOG;
 use crate::file_system::path::find_inode;
 use crate::memory::{ActivePageTable, copy_in, copy_in_string, copy_out, page_round_up, PAGE_SIZE};
 use crate::memory::user_virtual_memory;
-use crate::param::MAX_ARG;
 use crate::process::CPU_MANAGER;
 use crate::syscall::{read_arg_string, read_arg_usize};
 

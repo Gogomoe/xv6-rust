@@ -1,11 +1,10 @@
 use alloc::string::String;
 use core::ptr::null_mut;
 
-use crate::file_system::define::TYPE_DIR;
 use crate::file_system::inode::{ICACHE, INode};
-use crate::file_system::ROOT_INO;
-use crate::param::ROOT_DEV;
 use crate::process::CPU_MANAGER;
+use file_system_lib::{ROOT_INO, TYPE_DIR};
+use param_lib::ROOT_DEV;
 
 // Copy the next path element from path into name.
 // Return a pointer to the element following the copied one.

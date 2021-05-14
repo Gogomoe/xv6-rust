@@ -3,9 +3,9 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 
 use crate::driver::DISK;
 use crate::file_system::BLOCK_SIZE;
-use crate::param::BUFFER_SIZE;
 use crate::sleep_lock::{SleepLock, SleepLockGuard};
 use crate::spin_lock::SpinLock;
+use param_lib::BUFFER_SIZE;
 
 type BufferData = [u8; BLOCK_SIZE];
 

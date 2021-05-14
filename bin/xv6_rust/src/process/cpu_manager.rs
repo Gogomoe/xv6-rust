@@ -1,7 +1,8 @@
 use core::cell::RefCell;
 use core::ptr::null_mut;
 
-use crate::param::MAX_CPU_NUMBER;
+use param_lib::MAX_CPU_NUMBER;
+
 use crate::process::context::Context;
 use crate::process::process::Process;
 use crate::process::process::ProcessState::{RUNNABLE, RUNNING, SLEEPING};

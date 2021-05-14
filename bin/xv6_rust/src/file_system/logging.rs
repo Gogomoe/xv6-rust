@@ -3,9 +3,9 @@ use core::ptr;
 
 use crate::file_system::{BLOCK_CACHE, BLOCK_SIZE, SuperBlock};
 use crate::file_system::buffer_cache::BufferGuard;
-use crate::param::{LOG_SIZE, MAX_OP_BLOCKS};
 use crate::process::{CPU_MANAGER, PROCESS_MANAGER};
 use crate::spin_lock::SpinLock;
+use param_lib::{LOG_SIZE, MAX_OP_BLOCKS};
 
 struct LogHeader {
     n: usize,

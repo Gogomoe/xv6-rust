@@ -1,15 +1,6 @@
-[package]
-name = "xv6_rust"
-version = "0.1.0"
-authors = ["Gogo <gogo81745.moe@gmail.com>"]
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-#spin = "0.5.2"
-lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
-bitflags = "1.0"
-linked_list_allocator = "0.9"
-array-macro = "2.1.0"
-cstr_core = "0.2.3"
+[workspace]
+members = [
+    "bin/xv6_rust",
+    "lib/param_lib",
+    "lib/file_system_lib",
+]

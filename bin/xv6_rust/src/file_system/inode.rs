@@ -7,10 +7,11 @@ use core::ptr::null_mut;
 
 use cstr_core::{c_char, CStr, CString};
 
+use file_system_lib::{DIRECTORY_COUNT, DIRECTORY_SIZE, Dirent, FileStatus, iblock, INodeDisk, IPB, MAX_FILE_COUNT, TYPE_DIR};
+use param_lib::MAX_INODE_NUMBER;
+
 use crate::file_system::{Block, BLOCK_CACHE, BLOCK_SIZE, LOG, SUPER_BLOCK};
-use crate::file_system::define::{DIRECTORY_COUNT, DIRECTORY_SIZE, Dirent, FileStatus, iblock, INodeDisk, IPB, MAX_FILE_COUNT, TYPE_DIR};
 use crate::memory::{either_copy_in, either_copy_out};
-use crate::param::MAX_INODE_NUMBER;
 use crate::sleep_lock::{SleepLock, SleepLockGuard};
 use crate::spin_lock::SpinLock;
 
@@ -222,7 +223,7 @@ impl INode {
             if de.inum == 0 {
                 continue;
             }
-            let de_name = unsafe { CStr::from_ptr(&de.name as *const c_char) }.to_string_lossy().into_owned();
+            let de_name = unsafe { CStr::from_ptr(&de.name as *const _ as *const c_char) }.to_string_lossy().into_owned();
             if de_name == *name {
                 if !poff.is_null() {
                     unsafe {
@@ -289,7 +290,7 @@ impl INode {
     // that lives on disk, since i-node cache is write-through.
     // Caller must hold ip->lock.
     pub fn update(&self) {
-        let sb = unsafe { &SUPER_BLOCK };
+        let sb = SUPER_BLOCK.get();
         let log = unsafe { &mut LOG };
         let data = self.data();
 
@@ -320,7 +321,7 @@ impl INode {
     // Lock the given inode.
     // Reads the inode from disk if necessary.
     pub fn lock(&self) -> SleepLockGuard<()> {
-        let sb = unsafe { &SUPER_BLOCK };
+        let sb = SUPER_BLOCK.get();
         let data = self.data();
 
         assert!(data.ref_count >= 1);
@@ -399,7 +400,7 @@ impl ICache {
     // Mark it as allocated by  giving it type type.
     // Returns an unlocked but allocated and referenced inode.
     pub fn alloc(&self, dev: u32, types: u16) -> &INode {
-        let sb = unsafe { &SUPER_BLOCK };
+        let sb = SUPER_BLOCK.get();
         let log = unsafe { &mut LOG };
         for inum in 1..sb.inode_number {
             let bp = BLOCK_CACHE.read(dev, iblock(inum, sb));

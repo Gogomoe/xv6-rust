@@ -1,12 +1,10 @@
+use core::cell::UnsafeCell;
 use core::ptr;
 
 pub use buffer_cache::BLOCK_CACHE;
-use define::{BLOCK_SIZE, FSMAGIC, ROOT_INO, SuperBlock};
+use file_system_lib::{bblock, BLOCK_SIZE, BPB, FSMAGIC, SuperBlock};
 pub use logging::LOG;
 
-use crate::file_system::define::{bblock, BPB};
-
-pub mod define;
 pub mod buffer_cache;
 pub mod logging;
 pub mod inode;
@@ -16,20 +14,38 @@ pub mod elf;
 pub fn file_system_init(dev: u32) {
     unsafe {
         SUPER_BLOCK.read(dev);
-        assert_eq!(SUPER_BLOCK.magic, FSMAGIC);
-        LOG.init(dev, &SUPER_BLOCK);
+        assert_eq!(SUPER_BLOCK.get().magic, FSMAGIC);
+        LOG.init(dev, SUPER_BLOCK.get());
     }
 }
 
-pub static mut SUPER_BLOCK: SuperBlock = SuperBlock::new();
+pub static SUPER_BLOCK: SuperBlockWrapper = SuperBlockWrapper::new();
 
-impl SuperBlock {
-    fn read(&mut self, dev: u32) {
+pub struct SuperBlockWrapper {
+    super_block: UnsafeCell<SuperBlock>,
+}
+
+unsafe impl Sync for SuperBlockWrapper {}
+
+impl SuperBlockWrapper {
+    const fn new() -> SuperBlockWrapper {
+        SuperBlockWrapper {
+            super_block: UnsafeCell::new(SuperBlock::new())
+        }
+    }
+
+    fn read(&self, dev: u32) {
         let block = BLOCK_CACHE.read(dev, 1);
         unsafe {
-            ptr::copy(block.data() as *const SuperBlock, self as *mut SuperBlock, 1);
+            ptr::copy(block.data() as *const SuperBlock, self.super_block.get(), 1);
         }
         BLOCK_CACHE.release(block);
+    }
+
+    pub fn get(&self) -> &mut SuperBlock {
+        unsafe {
+            self.super_block.get().as_mut().unwrap()
+        }
     }
 }
 
@@ -46,7 +62,7 @@ impl Block {
     }
 
     pub fn alloc(dev: u32) -> u32 {
-        let sb = unsafe { &SUPER_BLOCK };
+        let sb = SUPER_BLOCK.get();
         let log = unsafe { &mut LOG };
         for b in (0..sb.size).step_by(BPB as usize) {
             let block = BLOCK_CACHE.read(dev, bblock(b, sb));
@@ -72,7 +88,7 @@ impl Block {
     }
 
     pub fn free(dev: u32, b: u32) {
-        let sb = unsafe { &SUPER_BLOCK };
+        let sb = SUPER_BLOCK.get();
         let log = unsafe { &mut LOG };
 
         let block = BLOCK_CACHE.read(dev, bblock(b, sb));

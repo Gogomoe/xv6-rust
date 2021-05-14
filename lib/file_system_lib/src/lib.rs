@@ -1,3 +1,6 @@
+#![no_std]
+#![feature(core_intrinsics)]
+
 use core::intrinsics::size_of;
 
 pub const ROOT_INO: u32 = 1;
