@@ -1,22 +1,11 @@
 use alloc::string::String;
 use core::ptr::null_mut;
 
+use crate::file_system::define::TYPE_DIR;
 use crate::file_system::inode::{ICACHE, INode};
 use crate::file_system::ROOT_INO;
 use crate::param::ROOT_DEV;
 use crate::process::CPU_MANAGER;
-
-pub const TYPE_DIR: u16 = 1;
-pub const TYPE_FILE: u16 = 2;
-pub const TYPE_DEVICE: u16 = 3;
-
-pub struct FileStatus {
-    pub dev: u32,
-    pub ino: u32,
-    pub types: u16,
-    pub nlink: u16,
-    pub size: u32,
-}
 
 // Copy the next path element from path into name.
 // Return a pointer to the element following the copied one.

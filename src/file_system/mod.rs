@@ -1,37 +1,17 @@
-use core::intrinsics::size_of;
 use core::ptr;
 
 pub use buffer_cache::BLOCK_CACHE;
+use define::{BLOCK_SIZE, FSMAGIC, ROOT_INO, SuperBlock};
 pub use logging::LOG;
 
+use crate::file_system::define::{bblock, BPB};
+
+pub mod define;
 pub mod buffer_cache;
 pub mod logging;
 pub mod inode;
 pub mod path;
 pub mod elf;
-
-pub const ROOT_INO: u32 = 1;
-pub const BLOCK_SIZE: usize = 1024;
-pub const FSMAGIC: u32 = 0x10203040;
-
-pub const DIRECTORY_COUNT: usize = 12;
-pub const DIRECTORY_INNER_COUNT: usize = BLOCK_SIZE / size_of::<usize>();
-pub const MAX_FILE_COUNT: usize = DIRECTORY_COUNT + DIRECTORY_INNER_COUNT;
-
-pub const BPB: u32 = (BLOCK_SIZE * 8) as u32;
-
-pub const DIRECTORY_SIZE: usize = 14;
-
-#[repr(C)]
-pub struct Dirent {
-    inum: u16,
-    name: [u8; DIRECTORY_SIZE],
-}
-
-#[inline]
-fn bblock(block: u32, sb: &SuperBlock) -> u32 {
-    block / BPB as u32 + sb.block_map_start
-}
 
 pub fn file_system_init(dev: u32) {
     unsafe {
@@ -43,18 +23,6 @@ pub fn file_system_init(dev: u32) {
 
 pub static mut SUPER_BLOCK: SuperBlock = SuperBlock::new();
 
-#[repr(C)]
-pub struct SuperBlock {
-    magic: u32,
-    size: u32,
-    blocks_number: u32,
-    inode_number: u32,
-    log_number: u32,
-    log_start: u32,
-    inode_start: u32,
-    block_map_start: u32,
-}
-
 impl SuperBlock {
     fn read(&mut self, dev: u32) {
         let block = BLOCK_CACHE.read(dev, 1);
@@ -62,21 +30,6 @@ impl SuperBlock {
             ptr::copy(block.data() as *const SuperBlock, self as *mut SuperBlock, 1);
         }
         BLOCK_CACHE.release(block);
-    }
-}
-
-impl SuperBlock {
-    pub const fn new() -> SuperBlock {
-        SuperBlock {
-            magic: 0,
-            size: 0,
-            blocks_number: 0,
-            inode_number: 0,
-            log_number: 0,
-            log_start: 0,
-            inode_start: 0,
-            block_map_start: 0,
-        }
     }
 }
 

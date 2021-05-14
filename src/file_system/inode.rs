@@ -1,25 +1,18 @@
+use alloc::string::String;
 use core::cell::UnsafeCell;
 use core::cmp::min;
 use core::intrinsics::size_of;
 use core::ptr;
 use core::ptr::null_mut;
 
-use crate::file_system::{Block, BLOCK_CACHE, BLOCK_SIZE, DIRECTORY_COUNT, DIRECTORY_SIZE, Dirent, LOG, MAX_FILE_COUNT, SUPER_BLOCK, SuperBlock};
-use crate::file_system::path::{FileStatus, TYPE_DIR};
+use cstr_core::{c_char, CStr, CString};
+
+use crate::file_system::{Block, BLOCK_CACHE, BLOCK_SIZE, LOG, SUPER_BLOCK};
+use crate::file_system::define::{DIRECTORY_COUNT, DIRECTORY_SIZE, Dirent, FileStatus, iblock, INodeDisk, IPB, MAX_FILE_COUNT, TYPE_DIR};
 use crate::memory::{either_copy_in, either_copy_out};
 use crate::param::MAX_INODE_NUMBER;
 use crate::sleep_lock::{SleepLock, SleepLockGuard};
 use crate::spin_lock::SpinLock;
-use cstr_core::{CStr, c_char, CString};
-use alloc::string::String;
-
-// Inodes per block
-const IPB: u32 = (BLOCK_SIZE / size_of::<INodeDisk>()) as u32;
-
-#[inline]
-fn iblock(i: u32, sb: &SuperBlock) -> u32 {
-    i / IPB + sb.inode_start
-}
 
 pub struct INodeData {
     pub dev: u32,
@@ -386,30 +379,6 @@ impl INode {
 
         data.size = 0;
         self.update();
-    }
-}
-
-#[repr(C)]
-pub struct INodeDisk {
-    types: u16,
-    major: u16,
-    minor: u16,
-    nlink: u16,
-
-    size: u32,
-    addr: [u32; DIRECTORY_COUNT + 1],
-}
-
-impl INodeDisk {
-    const fn new() -> INodeDisk {
-        INodeDisk {
-            types: 0,
-            major: 0,
-            minor: 0,
-            nlink: 0,
-            size: 0,
-            addr: [0; DIRECTORY_COUNT + 1],
-        }
     }
 }
 
