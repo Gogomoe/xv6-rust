@@ -2,12 +2,15 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::intrinsics::size_of;
 
-use crate::file_system::elf::{ELF_MAGIC, ElfHeader, ProgramHeader, ELF_PROG_LOAD};
+use cstr_core::CString;
+
+use crate::file_system::elf::{ELF_MAGIC, ELF_PROG_LOAD, ElfHeader, ProgramHeader};
 use crate::file_system::inode::{ICACHE, INode};
 use crate::file_system::LOG;
 use crate::file_system::path::find_inode;
-use crate::memory::{copy_in, copy_in_string, ActivePageTable, PAGE_SIZE};
+use crate::memory::{ActivePageTable, copy_in, copy_in_string, copy_out, page_round_up, PAGE_SIZE};
 use crate::memory::user_virtual_memory;
+use crate::param::MAX_ARG;
 use crate::process::CPU_MANAGER;
 use crate::syscall::{read_arg_string, read_arg_usize};
 
@@ -47,14 +50,30 @@ fn read_arg_string_array(pos: usize) -> Option<Vec<String>> {
 }
 
 fn exec(path: String, argv: Vec<String>) -> u64 {
+    let load_result = load_program(&path);
+    if load_result.is_none() {
+        return u64::max_value();
+    }
+
+    let (page_table, size, elf_header) = load_result.unwrap();
+    let result = prepare_process(path, argv, page_table, size, elf_header);
+
+    return if result.is_none() {
+        u64::max_value()
+    } else {
+        result.unwrap() as u64
+    };
+}
+
+fn load_program(path: &String) -> Option<(ActivePageTable, usize, ElfHeader)> {
     let log = unsafe { &mut LOG };
 
     log.begin_op();
 
-    let ip = find_inode(&path);
+    let ip = find_inode(path);
     if ip.is_none() {
         log.end_op();
-        return u64::max_value();
+        return None;
     }
     let ip = ip.unwrap();
     let guard = ip.lock();
@@ -65,7 +84,7 @@ fn exec(path: String, argv: Vec<String>) -> u64 {
         ip.unlock(guard);
         ICACHE.put(ip);
         log.end_op();
-        return u64::max_value();
+        return None;
     }
 
     let page_table = user_virtual_memory::alloc_page_table(CPU_MANAGER.my_proc().data().trap_frame);
@@ -73,7 +92,7 @@ fn exec(path: String, argv: Vec<String>) -> u64 {
         ip.unlock(guard);
         ICACHE.put(ip);
         log.end_op();
-        return u64::max_value();
+        return None;
     }
     let mut page_table = page_table.unwrap();
 
@@ -85,7 +104,7 @@ fn exec(path: String, argv: Vec<String>) -> u64 {
             ip.unlock(guard);
             ICACHE.put(ip);
             log.end_op();
-            return u64::max_value();
+            return None;
         }
     };
 
@@ -93,7 +112,94 @@ fn exec(path: String, argv: Vec<String>) -> u64 {
     ICACHE.put(ip);
     log.end_op();
 
-    todo!();
+    return Some((page_table, size, elf_header));
+}
+
+fn prepare_process(path: String, argv: Vec<String>, mut page_table: ActivePageTable, mut size: usize, elf_header: ElfHeader) -> Option<usize> {
+    let process = CPU_MANAGER.my_proc();
+    let old_size = process.data().size;
+
+    // Allocate two pages at the next page boundary.
+    // Use the second as the user stack.
+    size = page_round_up(size);
+    size = match user_virtual_memory::alloc_user_virtual_memory(&mut page_table, size, size + 2 * PAGE_SIZE) {
+        None => {
+            user_virtual_memory::free_page_table(page_table, size);
+            return None;
+        }
+        Some(new_size) => {
+            new_size
+        }
+    };
+    let stack_top = size;
+    let stack_base = stack_top - PAGE_SIZE;
+
+    user_virtual_memory::make_guard_page(&mut page_table, stack_top - 2 * PAGE_SIZE);
+
+    // Push argument strings, prepare rest of stack in ustack.
+    if argv.len() >= MAX_ARG {
+        user_virtual_memory::free_page_table(page_table, size);
+        return None;
+    }
+    let mut sp = stack_top;
+    let mut user_stack = Vec::new();
+    for argc in 0..argv.len() {
+        let c_str = CString::new(argv[argc].clone()).expect("CString::new failed");
+        let c_bytes = c_str.to_bytes_with_nul();
+
+        sp -= c_bytes.len();
+        sp -= sp % 16; // riscv sp must be 16-byte aligned
+
+        if sp < stack_base {
+            user_virtual_memory::free_page_table(page_table, size);
+            return None;
+        }
+        let copy_result = unsafe { copy_out(&page_table, sp, c_bytes.as_ptr() as usize, c_bytes.len()) };
+        if !copy_result {
+            user_virtual_memory::free_page_table(page_table, size);
+            return None;
+        }
+
+        user_stack.push(sp);
+    }
+    user_stack.push(0);
+
+    // push the array of argv[] pointers.
+    sp -= (argv.len() + 1) * size_of::<u64>();
+    sp -= sp % 16;
+    if sp < stack_base {
+        user_virtual_memory::free_page_table(page_table, size);
+        return None;
+    }
+    let copy_result = unsafe { copy_out(&page_table, sp, user_stack.as_ptr() as usize, (argv.len() + 1) * size_of::<u64>()) };
+    if !copy_result {
+        user_virtual_memory::free_page_table(page_table, size);
+        return None;
+    }
+
+    // arguments to user main(argc, argv)
+    // argc is returned via the system call return
+    // value, which goes in a0.
+    let data = process.data();
+    let trap_frame = unsafe { data.trap_frame.as_mut() }.unwrap();
+
+    trap_frame.a1 = sp as u64;
+
+    // Save program name for debugging.
+    let last = path.rfind("/").map_or(0, |it| it + 1);
+    let (_, filename) = path.split_at(last);
+    data.name = String::from(filename);
+
+    // Commit to the user image.
+    let old_page_table = data.page_table.take().unwrap();
+    data.page_table = Some(page_table);
+    data.size = size;
+    trap_frame.epc = elf_header.entry;  // initial program counter = main
+    trap_frame.sp = sp as u64; // initial stack pointer
+
+    user_virtual_memory::free_page_table(old_page_table, old_size);
+
+    return Some(argv.len()); // this ends up in a0, the first argument to main(argc, argv)
 }
 
 fn check_elf_header(elf_header: &mut ElfHeader, ip: &INode) -> bool {

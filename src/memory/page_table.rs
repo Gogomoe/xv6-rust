@@ -37,6 +37,10 @@ impl PageEntry {
         self.0 = ((frame.addr() >> 12) << 10) as u64 | flags.bits();
     }
 
+    pub fn set_flags(&mut self, flags: PageEntryFlags) {
+        self.0 = ((self.pointed_frame().unwrap().addr() >> 12) << 10) as u64 | flags.bits();
+    }
+
     pub fn is_unused(&self) -> bool {
         self.0 == 0
     }

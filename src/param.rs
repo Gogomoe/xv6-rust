@@ -4,6 +4,7 @@ pub const MAX_INODE_NUMBER: usize = 50;
 
 pub const ROOT_DEV: u32 = 1;
 
+pub const MAX_ARG: usize = 32;
 pub const MAX_OP_BLOCKS: usize = 10;
 pub const LOG_SIZE: usize = 3 * MAX_OP_BLOCKS;
 pub const BUFFER_SIZE: usize = 3 * MAX_OP_BLOCKS;

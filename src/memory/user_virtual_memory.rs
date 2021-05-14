@@ -67,7 +67,7 @@ pub fn free_page_table(mut page_table: ActivePageTable, size: usize) {
     for v_addr in (0..size).step_by(PAGE_SIZE) {
         page_table.unmap(Page::from_virtual_address(v_addr));
     }
-    PHYSICAL_MEMORY.free(&page_table as *const _ as usize);
+    page_table.free();
 }
 
 // Allocate PTEs and physical memory to grow process from oldsz to
@@ -114,4 +114,13 @@ pub fn dealloc_user_virtual_memory(page_table: &mut ActivePageTable, old_size: u
     }
 
     return new_size;
+}
+
+// mark a PTE invalid for user access.
+// used by exec for the user stack guard page.
+pub fn make_guard_page(page_table: &mut ActivePageTable, va: usize) {
+    let page = Page::from_virtual_address(va);
+    let mut flags = page_table.read_flags(&page).unwrap();
+    flags &= !PageEntryFlags::USER;
+    page_table.write_flags(&page, flags);
 }

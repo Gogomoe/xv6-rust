@@ -46,6 +46,10 @@ impl ActivePageTable {
         })
     }
 
+    pub fn free(self) -> () {
+        PHYSICAL_MEMORY.free(self.p3 as usize);
+    }
+
     fn p3(&self) -> &PageTable<Level3> {
         unsafe { &*self.p3 }
     }
@@ -134,6 +138,26 @@ impl ActivePageTable {
             .expect("unmap");
 
         p1[page.l1_index()].set_unused();
+    }
+
+    pub fn read_flags(&self, page: &Page) -> Option<PageEntryFlags> {
+        let p2 = self.p3().next_table(page.l3_index());
+        let p1 = p2.and_then(|it| it.next_table(page.l2_index()));
+        return p1.and_then(|it| if it[page.l1_index()].is_unused() {
+            None
+        } else {
+            Some(it[page.l1_index()].flags())
+        });
+    }
+
+    pub fn write_flags(&mut self, page: &Page, flags: PageEntryFlags) {
+        assert!(self.translate_page(page).is_some());
+
+        let p1 = self.p3_mut().next_table_mut(page.l3_index())
+            .and_then(|p2| p2.next_table_mut(page.l2_index()))
+            .expect("unmap");
+
+        p1[page.l1_index()].set_flags(flags);
     }
 }
 
