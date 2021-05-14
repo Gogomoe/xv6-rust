@@ -57,8 +57,23 @@ pub struct ProgramHeader {
     pub align: u64,
 }
 
+impl ProgramHeader {
+    pub const fn new() -> ProgramHeader {
+        ProgramHeader {
+            types: 0,
+            flags: 0,
+            off: 0,
+            vaddr: 0,
+            paddr: 0,
+            filesz: 0,
+            memsz: 0,
+            align: 0,
+        }
+    }
+}
+
 // Values for Proghdr type
-pub const ELF_PROG_LOAD: usize = 1;
+pub const ELF_PROG_LOAD: u32 = 1;
 
 // Flag bits for Proghdr flags
 pub const ELF_PROG_FLAG_EXEC: usize = 1;
