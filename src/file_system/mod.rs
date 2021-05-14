@@ -8,6 +8,7 @@ pub mod buffer_cache;
 pub mod logging;
 pub mod inode;
 pub mod path;
+pub mod elf;
 
 pub const ROOT_INO: u32 = 1;
 pub const BLOCK_SIZE: usize = 1024;

@@ -81,7 +81,7 @@ pub fn find_inode(path: &String) -> Option<&'static INode> {
             ICACHE.put(ip_ref);
             return None;
         }
-        let next_dir = ip_ref.dir_lookup(name.as_bytes(), null_mut());
+        let next_dir = ip_ref.dir_lookup(&name, null_mut());
         if next_dir.is_none() {
             ip_ref.unlock(guard);
             ICACHE.put(ip_ref);
@@ -125,7 +125,7 @@ pub fn find_inode_parent(path: &String) -> Option<(&INode, String)> {
             ip_ref.unlock(guard);
             return Some((unsafe { ip.as_ref() }.unwrap(), name));
         }
-        let next_dir = ip_ref.dir_lookup(name.as_bytes(), null_mut());
+        let next_dir = ip_ref.dir_lookup(&name, null_mut());
         if next_dir.is_none() {
             ip_ref.unlock(guard);
             ICACHE.put(ip_ref);

@@ -2,6 +2,10 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::intrinsics::size_of;
 
+use crate::file_system::elf::{ElfHeader, ELF_MAGIC};
+use crate::file_system::inode::{ICACHE};
+use crate::file_system::LOG;
+use crate::file_system::path::find_inode;
 use crate::memory::{copy_in, copy_in_string};
 use crate::process::CPU_MANAGER;
 use crate::syscall::{read_arg_string, read_arg_usize};
@@ -42,5 +46,33 @@ fn read_arg_string_array(pos: usize) -> Option<Vec<String>> {
 }
 
 fn exec(path: String, argv: Vec<String>) -> u64 {
-    todo!()
+    let log = unsafe { &mut LOG };
+
+    log.begin_op();
+
+    let ip = find_inode(&path);
+    if ip.is_none() {
+        log.end_op();
+        return u64::max_value();
+    }
+    let ip = ip.unwrap();
+    let guard = ip.lock();
+
+    // Check ELF header
+    let elf_header = ElfHeader::new();
+    let size_of_elf_header = size_of::<ElfHeader>() as u32;
+    if ip.read(false, &elf_header as *const _ as usize, 0, size_of_elf_header) != size_of_elf_header {
+        ip.unlock(guard);
+        ICACHE.put(ip);
+        log.end_op();
+        return u64::max_value();
+    }
+    if elf_header.magic != ELF_MAGIC {
+        ip.unlock(guard);
+        ICACHE.put(ip);
+        log.end_op();
+        return u64::max_value();
+    }
+
+    todo!();
 }

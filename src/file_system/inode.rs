@@ -10,6 +10,8 @@ use crate::memory::{either_copy_in, either_copy_out};
 use crate::param::MAX_INODE_NUMBER;
 use crate::sleep_lock::{SleepLock, SleepLockGuard};
 use crate::spin_lock::SpinLock;
+use cstr_core::{CStr, c_char, CString};
+use alloc::string::String;
 
 // Inodes per block
 const IPB: u32 = (BLOCK_SIZE / size_of::<INodeDisk>()) as u32;
@@ -209,7 +211,7 @@ impl INode {
 
     // Look for a directory entry in a directory.
     // If found, set *poff to byte offset of entry.
-    pub fn dir_lookup(&self, name: &[u8], poff: *mut u32) -> Option<&INode> {
+    pub fn dir_lookup(&self, name: &String, poff: *mut u32) -> Option<&INode> {
         let data = self.data();
 
         assert_eq!(data.types, TYPE_DIR);
@@ -227,7 +229,8 @@ impl INode {
             if de.inum == 0 {
                 continue;
             }
-            if de.name == *name {
+            let de_name = unsafe { CStr::from_ptr(&de.name as *const c_char) }.to_string_lossy().into_owned();
+            if de_name == *name {
                 if !poff.is_null() {
                     unsafe {
                         (*poff) = off;
@@ -240,7 +243,8 @@ impl INode {
         return None;
     }
 
-    pub fn dir_link(&self, name: &[u8], inum: u32) -> Option<()> {
+    // Write a new directory entry (name, inum) into the directory dp.
+    pub fn dir_link(&self, name: &String, inum: u32) -> Option<()> {
         let data = self.data();
 
         let ip = self.dir_lookup(name, null_mut());
@@ -269,8 +273,12 @@ impl INode {
             off += size_de;
         }
 
+        let c_str = CString::new(name.clone()).expect("CString::new failed");
+        let c_bytes = c_str.to_bytes_with_nul();
+        assert!(c_bytes.len() <= DIRECTORY_SIZE);
+
         unsafe {
-            ptr::copy(name as *const _ as *mut [u8; DIRECTORY_SIZE], &mut de.name, 1);
+            ptr::copy(c_bytes as *const _ as *mut [u8; DIRECTORY_SIZE], &mut de.name, 1);
         }
         de.inum = inum as u16;
 
