@@ -69,14 +69,18 @@ impl ActivePageTable {
         return p1.and_then(|it| it[page.l1_index()].pointed_frame().map(|it| it.addr()));
     }
 
-    pub fn map(&mut self, page: Page, frame: Frame, flags: PageEntryFlags) -> bool {
-        self.p3_mut().next_table_or_create(page.l3_index())
-            .and_then(|p2| p2.next_table_or_create(page.l2_index()))
-            .map_or(false, |p1| {
+    pub fn map(&mut self, page: Page, frame: Frame, flags: PageEntryFlags) -> Result<(), Frame> {
+        match self.p3_mut().next_table_or_create(page.l3_index())
+            .and_then(|p2| p2.next_table_or_create(page.l2_index())) {
+            None => {
+                Err(frame)
+            }
+            Some(p1) => {
                 assert!(p1[page.l1_index()].is_unused());
                 p1[page.l1_index()].set(frame, flags | PageEntryFlags::VALID);
-                true
-            })
+                Ok(())
+            }
+        }
     }
 
     pub fn unmap(&mut self, page: Page) {
@@ -102,7 +106,7 @@ impl ActivePageTable {
                 Frame::from_physical_address(p_addr),
                 perm,
             );
-            if !result {
+            if result.is_err() {
                 return false;
             }
 

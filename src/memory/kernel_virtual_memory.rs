@@ -51,7 +51,7 @@ impl ActivePageTable {
                 frame,
                 perm,
             );
-            assert!(result);
+            assert!(result.is_ok());
 
             v_addr += PAGE_SIZE;
         }

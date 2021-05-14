@@ -25,7 +25,8 @@ pub unsafe fn init(page_table: &mut ActivePageTable) {
     ptr::copy(&INIT_CODE as *const [u8; 52], frame.addr() as *mut [u8; 52], 1);
 
     let wrxu = PageEntryFlags::WRITEABLE | PageEntryFlags::READABLE | PageEntryFlags::EXECUTABLE | PageEntryFlags::USER;
-    page_table.map(Page::from_virtual_address(0), frame, wrxu);
+    let result = page_table.map(Page::from_virtual_address(0), frame, wrxu);
+    assert!(result.is_ok());
 }
 
 pub fn alloc_page_table(trapframe: *mut TrapFrame) -> Option<ActivePageTable> {
