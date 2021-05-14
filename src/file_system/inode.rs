@@ -202,7 +202,7 @@ impl INode {
         // write the i-node back to disk even if the size didn't change
         // because the loop above might have called bmap() and added a new
         // block to ip->addrs[].
-        ICache::update(self);
+        self.update();
 
         return tot;
     }
@@ -279,6 +279,105 @@ impl INode {
         }
 
         Some(())
+    }
+}
+
+impl INode {
+    // Copy a modified in-memory inode to disk.
+    // Must be called after every change to an ip->xxx field
+    // that lives on disk, since i-node cache is write-through.
+    // Caller must hold ip->lock.
+    pub fn update(&self) {
+        let sb = unsafe { &SUPER_BLOCK };
+        let log = unsafe { &mut LOG };
+        let data = self.data();
+
+        let bp = BLOCK_CACHE.read(data.dev, iblock(data.inum, sb));
+        let dip = unsafe { (bp.data() as *mut INodeDisk).offset((data.inum % IPB) as isize).as_mut() }.unwrap();
+        dip.types = data.types;
+        dip.major = data.major;
+        dip.minor = data.minor;
+        dip.nlink = data.nlink;
+        dip.size = data.size;
+        unsafe {
+            ptr::copy(&data.addr, &mut dip.addr, 1);
+        }
+        log.write(&bp);
+        BLOCK_CACHE.release(bp);
+    }
+
+    // Increment reference count for ip.
+    // Returns ip to enable ip = idup(ip1) idiom.
+    pub fn dup(&self) -> &INode {
+        let guard = self.lock.lock();
+        let data = self.data();
+        data.ref_count += 1;
+        drop(guard);
+        return self;
+    }
+
+    // Lock the given inode.
+    // Reads the inode from disk if necessary.
+    pub fn lock(&self) -> SleepLockGuard<()> {
+        let sb = unsafe { &SUPER_BLOCK };
+        let data = self.data();
+
+        assert!(data.ref_count >= 1);
+
+        let guard = self.lock.lock();
+
+        if !data.valid {
+            let bp = BLOCK_CACHE.read(data.dev, iblock(data.inum, sb));
+            let dip = unsafe { (bp.data() as *mut INodeDisk).offset((data.inum % IPB) as isize).as_mut() }.unwrap();
+
+            data.types = dip.types;
+            data.major = dip.major;
+            data.minor = dip.minor;
+            data.nlink = dip.nlink;
+            data.size = dip.size;
+            unsafe {
+                ptr::copy(&dip.addr, &mut data.addr, 1);
+            }
+            BLOCK_CACHE.release(bp);
+            data.valid = true;
+            assert_ne!(data.types, 0);
+        }
+
+        guard
+    }
+
+    // Unlock the given inode.
+    pub fn unlock(&self, guard: SleepLockGuard<()>) {
+        assert!(self.data().ref_count >= 1);
+        drop(guard);
+    }
+
+    // Truncate inode (discard contents).
+    // Caller must hold ip->lock.
+    pub fn truncate(&self) {
+        let data = self.data();
+        for i in 0..DIRECTORY_COUNT {
+            if data.addr[i] != 0 {
+                Block::free(data.dev, data.addr[i]);
+                data.addr[i] = 0;
+            }
+        }
+
+        if data.addr[DIRECTORY_COUNT] != 0 {
+            let bp = BLOCK_CACHE.read(data.dev, data.addr[DIRECTORY_COUNT]);
+            let a = unsafe { (bp.data() as *mut [u32; 256] as *mut [u32]).as_ref() }.unwrap();
+            for i in 0..DIRECTORY_COUNT {
+                if a[i] != 0 {
+                    Block::free(data.dev, a[i] as u32);
+                }
+            }
+            BLOCK_CACHE.release(bp);
+            Block::free(data.dev, data.addr[DIRECTORY_COUNT]);
+            data.addr[DIRECTORY_COUNT] = 0;
+        }
+
+        data.size = 0;
+        self.update();
     }
 }
 
@@ -377,75 +476,6 @@ impl ICache {
         return unsafe { (ip as *const INode).as_ref() }.unwrap();
     }
 
-    // Copy a modified in-memory inode to disk.
-    // Must be called after every change to an ip->xxx field
-    // that lives on disk, since i-node cache is write-through.
-    // Caller must hold ip->lock.
-    pub fn update(inode: &INode) {
-        let sb = unsafe { &SUPER_BLOCK };
-        let log = unsafe { &mut LOG };
-        let data = inode.data();
-
-        let bp = BLOCK_CACHE.read(data.dev, iblock(data.inum, sb));
-        let dip = unsafe { (bp.data() as *mut INodeDisk).offset((data.inum % IPB) as isize).as_mut() }.unwrap();
-        dip.types = data.types;
-        dip.major = data.major;
-        dip.minor = data.minor;
-        dip.nlink = data.nlink;
-        dip.size = data.size;
-        unsafe {
-            ptr::copy(&data.addr, &mut dip.addr, 1);
-        }
-        log.write(&bp);
-        BLOCK_CACHE.release(bp);
-    }
-
-    // Increment reference count for ip.
-    // Returns ip to enable ip = idup(ip1) idiom.
-    pub fn dup(inode: &INode) -> &INode {
-        let guard = inode.lock.lock();
-        let data = inode.data();
-        data.ref_count += 1;
-        drop(guard);
-        return inode;
-    }
-
-    // Lock the given inode.
-    // Reads the inode from disk if necessary.
-    pub fn lock(inode: &INode) -> SleepLockGuard<()> {
-        let sb = unsafe { &SUPER_BLOCK };
-        let data = inode.data();
-
-        assert!(data.ref_count >= 1);
-
-        let guard = inode.lock.lock();
-
-        if !data.valid {
-            let bp = BLOCK_CACHE.read(data.dev, iblock(data.inum, sb));
-            let dip = unsafe { (bp.data() as *mut INodeDisk).offset((data.inum % IPB) as isize).as_mut() }.unwrap();
-
-            data.types = dip.types;
-            data.major = dip.major;
-            data.minor = dip.minor;
-            data.nlink = dip.nlink;
-            data.size = dip.size;
-            unsafe {
-                ptr::copy(&dip.addr, &mut data.addr, 1);
-            }
-            BLOCK_CACHE.release(bp);
-            data.valid = true;
-            assert_ne!(data.types, 0);
-        }
-
-        guard
-    }
-
-    // Unlock the given inode.
-    pub fn unlock(inode: &INode, guard: SleepLockGuard<()>) {
-        assert!(inode.data().ref_count >= 1);
-        drop(guard);
-    }
-
     // Drop a reference to an in-memory inode.
     // If that was the last reference, the inode cache entry can
     // be recycled.
@@ -465,9 +495,9 @@ impl ICache {
             let inode_guard = inode.lock.lock();
             drop(guard);
 
-            ICache::truncate(unsafe { (inode as *const _ as *mut INode).as_mut() }.unwrap());
+            inode.truncate();
             data.types = 0;
-            ICache::update(inode);
+            inode.update();
             data.valid = false;
 
             drop(inode_guard);
@@ -476,33 +506,5 @@ impl ICache {
 
         data.ref_count -= 1;
         drop(guard);
-    }
-
-    // Truncate inode (discard contents).
-    // Caller must hold ip->lock.
-    pub fn truncate(inode: &INode) {
-        let data = inode.data();
-        for i in 0..DIRECTORY_COUNT {
-            if data.addr[i] != 0 {
-                Block::free(data.dev, data.addr[i]);
-                data.addr[i] = 0;
-            }
-        }
-
-        if data.addr[DIRECTORY_COUNT] != 0 {
-            let bp = BLOCK_CACHE.read(data.dev, data.addr[DIRECTORY_COUNT]);
-            let a = unsafe { (bp.data() as *mut [u32; 256] as *mut [u32]).as_ref() }.unwrap();
-            for i in 0..DIRECTORY_COUNT {
-                if a[i] != 0 {
-                    Block::free(data.dev, a[i] as u32);
-                }
-            }
-            BLOCK_CACHE.release(bp);
-            Block::free(data.dev, data.addr[DIRECTORY_COUNT]);
-            data.addr[DIRECTORY_COUNT] = 0;
-        }
-
-        data.size = 0;
-        ICache::update(inode);
     }
 }

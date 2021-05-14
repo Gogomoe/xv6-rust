@@ -1,7 +1,7 @@
 use alloc::string::String;
 use core::ptr::null_mut;
 
-use crate::file_system::inode::{ICache, ICACHE, INode};
+use crate::file_system::inode::{ICACHE, INode};
 use crate::file_system::ROOT_INO;
 use crate::param::ROOT_DEV;
 use crate::process::CPU_MANAGER;
@@ -67,7 +67,7 @@ pub fn find_inode(path: &String) -> Option<&'static INode> {
         ICACHE.get(ROOT_DEV, ROOT_INO) as *const INode
     } else {
         let current_dir = CPU_MANAGER.my_proc().data().current_dir.unwrap();
-        ICache::dup(current_dir) as *const INode
+        current_dir.dup() as *const INode
     };
 
     let mut next_level = split_path(path);
@@ -75,19 +75,19 @@ pub fn find_inode(path: &String) -> Option<&'static INode> {
         let ip_ref = unsafe { ip.as_ref() }.unwrap();
 
         let (name, remain_path) = next_level.unwrap();
-        let guard = ICache::lock(ip_ref);
+        let guard = ip_ref.lock();
         if ip_ref.data().types != TYPE_DIR {
-            ICache::unlock(ip_ref, guard);
+            ip_ref.unlock(guard);
             ICACHE.put(ip_ref);
             return None;
         }
         let next_dir = ip_ref.dir_lookup(name.as_bytes(), null_mut());
         if next_dir.is_none() {
-            ICache::unlock(ip_ref, guard);
+            ip_ref.unlock(guard);
             ICACHE.put(ip_ref);
             return None;
         }
-        ICache::unlock(ip_ref, guard);
+        ip_ref.unlock(guard);
         ICACHE.put(ip_ref);
 
         ip = next_dir.unwrap();
@@ -102,7 +102,7 @@ pub fn find_inode_parent(path: &String) -> Option<(&INode, String)> {
         ICACHE.get(ROOT_DEV, ROOT_INO) as *const INode
     } else {
         let current_dir = CPU_MANAGER.my_proc().data().current_dir.unwrap();
-        ICache::dup(current_dir) as *const INode
+        current_dir.dup() as *const INode
     };
 
     let mut next_level = split_path(path);
@@ -114,24 +114,24 @@ pub fn find_inode_parent(path: &String) -> Option<(&INode, String)> {
         let ip_ref = unsafe { ip.as_ref() }.unwrap();
 
         let (name, remain_path) = next_level.unwrap();
-        let guard = ICache::lock(ip_ref);
+        let guard = ip_ref.lock();
         if ip_ref.data().types != TYPE_DIR {
-            ICache::unlock(ip_ref, guard);
+            ip_ref.unlock(guard);
             ICACHE.put(ip_ref);
             return None;
         }
         if remain_path.is_empty() {
             // Stop one level early.
-            ICache::unlock(ip_ref, guard);
+            ip_ref.unlock(guard);
             return Some((unsafe { ip.as_ref() }.unwrap(), name));
         }
         let next_dir = ip_ref.dir_lookup(name.as_bytes(), null_mut());
         if next_dir.is_none() {
-            ICache::unlock(ip_ref, guard);
+            ip_ref.unlock(guard);
             ICACHE.put(ip_ref);
             return None;
         }
-        ICache::unlock(ip_ref, guard);
+        ip_ref.unlock(guard);
         ICACHE.put(ip_ref);
 
         ip = next_dir.unwrap();
