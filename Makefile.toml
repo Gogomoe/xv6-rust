@@ -12,9 +12,16 @@ script = [
     """
 ]
 
+[tasks.build_mkfs]
+script = [
+    """
+    cargo build --package mkfs
+    """
+]
+
 [tasks.build_all]
 run_task = [
-    { name = "build_xv6_rust" }
+    { name = ["build_xv6_rust", "build_mkfs"] }
 ]
 
 [tasks.run]

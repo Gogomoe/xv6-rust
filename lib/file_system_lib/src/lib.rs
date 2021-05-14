@@ -1,5 +1,6 @@
 #![no_std]
 #![feature(core_intrinsics)]
+#![allow(dead_code)]
 
 use core::intrinsics::size_of;
 

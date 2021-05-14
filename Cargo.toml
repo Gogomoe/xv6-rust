@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "bin/xv6_rust",
+    "bin/mkfs",
     "lib/param_lib",
     "lib/file_system_lib",
 ]
