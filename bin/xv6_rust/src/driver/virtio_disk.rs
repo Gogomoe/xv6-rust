@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use core::convert::TryFrom;
 use core::intrinsics::size_of;
 use core::ptr;
@@ -188,7 +190,7 @@ impl Disk {
 
         let mut idx = self.alloc3_desc();
         while idx.is_none() {
-            CPU_MANAGER.my_cpu_mut().sleep(&self.free[0] as *const _ as usize, guard);
+            CPU_MANAGER.my_cpu().sleep(&self.free[0] as *const _ as usize, guard);
             guard = DISK_LOCK.lock();
 
             idx = self.alloc3_desc();
@@ -243,7 +245,7 @@ impl Disk {
 
         // Wait for virtio_disk_intr() to say request has finished.
         while info.disk.load(Ordering::SeqCst) {
-            CPU_MANAGER.my_cpu_mut().sleep(data as usize, guard);
+            CPU_MANAGER.my_cpu().sleep(data as usize, guard);
             guard = DISK_LOCK.lock();
         }
 

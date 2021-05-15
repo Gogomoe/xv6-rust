@@ -116,10 +116,10 @@ impl Log {
         let mut guard = self.lock.lock();
         loop {
             if self.committing {
-                CPU_MANAGER.my_cpu_mut().sleep(self as *const _ as usize, guard);
+                CPU_MANAGER.my_cpu().sleep(self as *const _ as usize, guard);
                 guard = self.lock.lock();
             } else if self.header.n + (self.outstanding + 1) * MAX_OP_BLOCKS > LOG_SIZE {
-                CPU_MANAGER.my_cpu_mut().sleep(self as *const _ as usize, guard);
+                CPU_MANAGER.my_cpu().sleep(self as *const _ as usize, guard);
                 guard = self.lock.lock();
             } else {
                 self.outstanding += 1;

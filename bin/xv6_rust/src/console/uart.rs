@@ -88,7 +88,7 @@ pub fn uart_put_char(c: u8) {
             // buffer is full.
             // wait for uartstart() to open up space in the buffer.\
             unsafe {
-                CPU_MANAGER.my_cpu_mut().sleep(&UART_TX_R as *const _ as usize, guard);
+                CPU_MANAGER.my_cpu().sleep(&UART_TX_R as *const _ as usize, guard);
             }
             guard = UART_LOCK.lock();
         } else {
@@ -108,7 +108,7 @@ pub fn uart_put_char(c: u8) {
 // to echo characters. it spins waiting for the uart's
 // output register to be empty.
 pub fn uart_put_char_sync(c: u8) {
-    let cpu = CPU_MANAGER.my_cpu_mut();
+    let cpu = CPU_MANAGER.my_cpu();
     cpu.push_off();
 
     if PANICKED.load(Ordering::Relaxed) {

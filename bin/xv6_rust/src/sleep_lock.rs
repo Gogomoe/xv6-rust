@@ -26,7 +26,7 @@ impl<T: ?Sized> SleepLock<T> {
     pub fn lock(&self) -> SleepLockGuard<'_, T> {
         let mut guard = self.lock.lock();
         while self.locked.get() {
-            CPU_MANAGER.my_cpu_mut().sleep(self.locked.as_ptr() as usize, guard);
+            CPU_MANAGER.my_cpu().sleep(self.locked.as_ptr() as usize, guard);
             guard = self.lock.lock();
         }
         self.locked.set(true);

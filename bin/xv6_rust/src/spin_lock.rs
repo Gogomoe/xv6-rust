@@ -38,7 +38,7 @@ impl<T: ?Sized> SpinLock<T> {
     }
 
     fn acquire(&self) {
-        CPU_MANAGER.my_cpu_mut().push_off();
+        CPU_MANAGER.my_cpu().push_off();
         if self.holding() {
             panic!("spinlock {} acquire", self.name);
         }
@@ -54,7 +54,7 @@ impl<T: ?Sized> SpinLock<T> {
         self.cpuid.set(-1);
         fence(Ordering::SeqCst);
         self.lock.store(false, Ordering::Release);
-        CPU_MANAGER.my_cpu_mut().pop_off();
+        CPU_MANAGER.my_cpu().pop_off();
     }
 
     /// A hole for fork_ret() to release a proc's excl lock

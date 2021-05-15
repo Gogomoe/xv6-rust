@@ -69,7 +69,7 @@ pub fn console_read(user_dst: bool, mut dst: usize, mut n: usize) -> usize {
                 drop(guard);
                 return usize::max_value();
             }
-            CPU_MANAGER.my_cpu_mut().sleep(&console.read as *const _ as usize, guard);
+            CPU_MANAGER.my_cpu().sleep(&console.read as *const _ as usize, guard);
             guard = CONSOLE.lock();
         }
 

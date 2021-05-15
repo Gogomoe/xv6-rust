@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 // Format of an ELF executable file
 pub const ELF_MAGIC: u32 = 0x464C457F;  // "\x7FELF" in little endian
 

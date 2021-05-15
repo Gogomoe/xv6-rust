@@ -56,7 +56,8 @@ impl ProcessManager {
             for j in 0..KERNEL_STACK_PAGE_COUNT {
                 let pa = PHYSICAL_MEMORY.alloc().unwrap();
                 let va = stack_top - (j + 1) * PAGE_SIZE;
-                page_table.map(Page::from_virtual_address(va), pa, rw);
+                let map_result = page_table.map(Page::from_virtual_address(va), pa, rw);
+                assert!(map_result.is_ok());
             }
 
             let process = self.processes[i].data();
@@ -79,7 +80,7 @@ impl ProcessManager {
         extern {
             fn swtch(old: *mut Context, new: *mut Context);
         }
-        let cpu = CPU_MANAGER.my_cpu_mut();
+        let cpu = CPU_MANAGER.my_cpu();
 
         cpu.process = null_mut();
 
@@ -308,7 +309,7 @@ impl ProcessManager {
         drop(parent_guard);
 
         unsafe {
-            CPU_MANAGER.my_cpu_mut().scheduled();
+            CPU_MANAGER.my_cpu().scheduled();
         }
 
         drop(self_guard);

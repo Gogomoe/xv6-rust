@@ -129,20 +129,14 @@ impl CpuManager {
         }
     }
 
-    pub fn my_cpu(&self) -> &Cpu {
-        unsafe {
-            self.cpus[cpu_id()].as_ptr().as_ref().unwrap()
-        }
-    }
-
-    pub fn my_cpu_mut(&self) -> &mut Cpu {
+    pub fn my_cpu(&self) -> &mut Cpu {
         unsafe {
             self.cpus[cpu_id()].as_ptr().as_mut().unwrap()
         }
     }
 
     pub fn my_proc(&self) -> &Process {
-        let cpu = self.my_cpu_mut();
+        let cpu = self.my_cpu();
         return unsafe { cpu.my_proc().as_ref() }.unwrap();
     }
 }

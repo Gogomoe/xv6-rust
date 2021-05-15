@@ -75,7 +75,7 @@ pub unsafe fn usertrap() {
     }
 
     if which_dev == 2 {
-        CPU_MANAGER.my_cpu_mut().yield_self();
+        CPU_MANAGER.my_cpu().yield_self();
     }
 
     user_trap_return();
@@ -148,7 +148,7 @@ pub unsafe fn kerneltrap() {
         panic!("kerneltrap");
     }
 
-    let cpu = CPU_MANAGER.my_cpu_mut();
+    let cpu = CPU_MANAGER.my_cpu();
     let process = cpu.my_proc();
     if which_dev == 2 && !process.is_null() && process.as_ref().unwrap().info().state == RUNNING {
         cpu.yield_self();
