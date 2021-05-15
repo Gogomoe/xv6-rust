@@ -311,7 +311,7 @@ impl INode {
     // Increment reference count for ip.
     // Returns ip to enable ip = idup(ip1) idiom.
     pub fn dup(&self) -> &INode {
-        let guard = self.lock.lock();
+        let guard = ICACHE.nodes.lock();
         let data = self.data();
         data.ref_count += 1;
         drop(guard);
