@@ -5,6 +5,7 @@
 #![feature(alloc_error_handler)]
 #![feature(const_fn_union)]
 #![feature(fn_traits)]
+#![feature(const_fn_fn_ptr_basics)]
 
 #[macro_use]
 extern crate alloc;

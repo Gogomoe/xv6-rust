@@ -1,11 +1,12 @@
 use alloc::string::String;
-use core::ptr::null_mut;
+use core::ptr::{null_mut, null};
 
 use file_control_lib::{OPEN_CREATE, OPEN_READ_ONLY, OPEN_READ_WRITE, OPEN_TRUNC, OPEN_WRITE_ONLY};
 use file_system_lib::{TYPE_DEVICE, TYPE_DIR, TYPE_FILE};
-use param_lib::MAX_DEV_NUMBER;
+use param_lib::{MAX_DEV_NUMBER, MAX_OPEN_FILE_NUMBER};
 
 use crate::file_system::{FILE_TABLE, LOG};
+use crate::file_system::file::File;
 use crate::file_system::file::FileType::{DEVICE, INODE};
 use crate::file_system::inode::{ICACHE, INode};
 use crate::file_system::path::{find_inode, find_inode_parent};
@@ -13,16 +14,93 @@ use crate::process::CPU_MANAGER;
 use crate::sleep_lock::SleepLockGuard;
 use crate::syscall::{read_arg_string, read_arg_usize};
 
-fn fd_alloc() -> Option<usize> {
+// Fetch the nth word-sized system call argument as a file descriptor
+// and return both the descriptor and the corresponding struct file.
+fn read_arg_fd(pos: usize) -> Option<(usize, &'static File)> {
+    let fd = read_arg_usize(pos);
+
+    if fd >= MAX_OPEN_FILE_NUMBER {
+        return None;
+    }
+
+    let file = CPU_MANAGER.my_proc().data().open_file[fd];
+    if file.is_null() {
+        return None;
+    }
+
+    Some((fd, unsafe { file.as_ref() }.unwrap()))
+}
+
+// Allocate a file descriptor for the given file.
+// Takes over file reference from caller on success.
+fn fd_alloc(file: &File) -> Option<usize> {
     let process = CPU_MANAGER.my_proc();
-    let open_files = process.data().open_file;
+    let mut open_files = process.data().open_file;
     for i in 0..open_files.len() {
         if open_files[i].is_null() {
+            open_files[i] = file as *const File;
             return Some(i);
         }
     }
     return None;
 }
+
+pub fn sys_dup() -> u64 {
+    let file = match read_arg_fd(0) {
+        Some((_, file)) => { file }
+        None => {
+            return u64::max_value();
+        }
+    };
+    let fd = match fd_alloc(file) {
+        Some(fd) => { fd }
+        None => {
+            return u64::max_value();
+        }
+    };
+    FILE_TABLE.dup(file);
+    return fd as u64;
+}
+
+pub fn sys_read() -> u64 {
+    let file = match read_arg_fd(0) {
+        Some((_, file)) => { file }
+        None => {
+            return u64::max_value();
+        }
+    };
+    let addr = read_arg_usize(1);
+    let size = read_arg_usize(2);
+
+    return FILE_TABLE.read(file, addr, size);
+}
+
+pub fn sys_write() -> u64 {
+    let file = match read_arg_fd(0) {
+        Some((_, file)) => { file }
+        None => {
+            return u64::max_value();
+        }
+    };
+    let addr = read_arg_usize(1);
+    let size = read_arg_usize(2);
+
+    return FILE_TABLE.write(file, addr, size);
+}
+
+pub fn sys_close() -> u64 {
+    let (fd, file) = match read_arg_fd(0) {
+        Some(it) => { it }
+        None => {
+            return u64::max_value();
+        }
+    };
+    CPU_MANAGER.my_proc().data().open_file[fd] = null();
+    FILE_TABLE.close(file);
+
+    return 0;
+}
+
 
 fn create(path: &String, types: u16, major: u16, minor: u16) -> Option<(&'static INode, SleepLockGuard<()>)> {
     let dp = find_inode_parent(path);
@@ -122,7 +200,7 @@ pub fn sys_open() -> u64 {
     }
     let file = file.unwrap();
 
-    let fd = fd_alloc();
+    let fd = fd_alloc(file);
     if fd.is_none() {
         FILE_TABLE.close(file);
         ip.unlock_put(guard);

@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use crate::memory::copy_in_string;
 use crate::process::CPU_MANAGER;
 use crate::syscall::exec::sys_exec;
-use crate::syscall::file::{sys_open, sys_mknod};
+use crate::syscall::file::{sys_close, sys_dup, sys_mknod, sys_open, sys_read, sys_write};
 
 pub mod exec;
 pub mod file;
@@ -18,9 +18,13 @@ pub struct SystemCall {
     func: fn() -> u64,
 }
 
+static SYSCALL_READ: SystemCall = SystemCall { name: "read", id: 5, func: sys_read };
 static SYSCALL_EXEC: SystemCall = SystemCall { name: "exec", id: 7, func: sys_exec };
+static SYSCALL_DUP: SystemCall = SystemCall { name: "dup", id: 10, func: sys_dup };
 static SYSCALL_OPEN: SystemCall = SystemCall { name: "open", id: 15, func: sys_open };
+static SYSCALL_WRITE: SystemCall = SystemCall { name: "write", id: 16, func: sys_write };
 static SYSCALL_MKNOD: SystemCall = SystemCall { name: "mknod", id: 17, func: sys_mknod };
+static SYSCALL_CLOSE: SystemCall = SystemCall { name: "close", id: 21, func: sys_close };
 
 lazy_static! {
     pub static ref SYSTEM_CALL: BTreeMap<usize, SystemCall> = {
@@ -29,9 +33,13 @@ lazy_static! {
             assert!(map.get(&it.id).is_none());
             map.insert(it.id, it);
         };
+        insert(SYSCALL_READ.clone());
         insert(SYSCALL_EXEC.clone());
+        insert(SYSCALL_DUP.clone());
         insert(SYSCALL_OPEN.clone());
+        insert(SYSCALL_WRITE.clone());
         insert(SYSCALL_MKNOD.clone());
+        insert(SYSCALL_CLOSE.clone());
         map
     };
 }

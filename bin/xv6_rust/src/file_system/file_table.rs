@@ -1,12 +1,13 @@
 use core::cell::UnsafeCell;
 
-use param_lib::MAX_FILE_NUMBER;
+use param_lib::{MAX_DEV_NUMBER, MAX_FILE_NUMBER};
 
+use crate::file_system::device::DEVICES;
 use crate::file_system::file::File;
-use crate::spin_lock::SpinLock;
-use crate::file_system::file::FileType::{NONE, PIPE, INODE, DEVICE};
-use crate::file_system::LOG;
+use crate::file_system::file::FileType::{DEVICE, INODE, NONE, PIPE};
 use crate::file_system::inode::ICACHE;
+use crate::file_system::LOG;
+use crate::spin_lock::SpinLock;
 
 pub struct FileTable {
     lock: SpinLock<()>,
@@ -44,6 +45,15 @@ impl FileTable {
         return None;
     }
 
+    // Increment ref count for file f.
+    pub fn dup<'a>(&self, file: &'a File) -> &'a File {
+        let guard = self.lock.lock();
+        assert!(file.data().ref_count >= 1);
+        file.data().ref_count += 1;
+        drop(guard);
+        return file;
+    }
+
     // Close file f.  (Decrement ref count, close when reaches 0.)
     pub fn close(&self, file: &File) {
         let guard = self.lock.lock();
@@ -72,6 +82,54 @@ impl FileTable {
             log.begin_op();
             ICACHE.put(ip.as_ref().unwrap());
             log.end_op();
+        }
+    }
+
+    // Read from file f.
+    // addr is a user virtual address.
+    pub fn read(&self, file: &File, addr: usize, size: usize) -> u64 {
+        if !file.data().readable {
+            return u64::max_value();
+        }
+
+        if file.data().types == PIPE {
+            // piperead(file.pipe, addr, size)
+            todo!();
+        } else if file.data().types == DEVICE {
+            let major = file.data().major;
+            let devices = unsafe { &mut DEVICES };
+            if major >= MAX_DEV_NUMBER as u16 || devices[major as usize].read.is_none() {
+                return u64::max_value();
+            }
+            devices[major as usize].read.unwrap().call((addr, size)) as u64
+        } else if file.data().types == INODE {
+            todo!();
+        } else {
+            panic!("fileread");
+        }
+    }
+
+    // Write to file f.
+    // addr is a user virtual address.
+    pub fn write(&self, file: &File, addr: usize, size: usize) -> u64 {
+        if !file.data().writable {
+            return u64::max_value();
+        }
+
+        if file.data().types == PIPE {
+            // pipewrite(file.pipe, addr, size)
+            todo!();
+        } else if file.data().types == DEVICE {
+            let major = file.data().major;
+            let devices = unsafe { &mut DEVICES };
+            if major >= MAX_DEV_NUMBER as u16 || devices[major as usize].write.is_none() {
+                return u64::max_value();
+            }
+            return devices[major as usize].write.unwrap().call((addr, size)) as u64;
+        } else if file.data().types == INODE {
+            todo!();
+        } else {
+            panic!("filewrite");
         }
     }
 }

@@ -14,6 +14,7 @@ pub mod elf;
 pub mod file;
 pub mod pipe;
 pub mod file_table;
+pub mod device;
 
 pub fn file_system_init(dev: u32) {
     unsafe {
