@@ -1,11 +1,13 @@
 #![allow(dead_code)]
 
 use alloc::string::String;
+use alloc::vec::Vec;
 use core::cell::UnsafeCell;
 use core::fmt;
 
 use bitflags::_core::ptr::null_mut;
 
+use crate::file_system::file::File;
 use crate::file_system::inode::INode;
 use crate::memory::ActivePageTable;
 use crate::process::context::Context;
@@ -21,8 +23,7 @@ pub struct ProcessData {
     pub context: Context,
     pub current_dir: Option<&'static INode>,
     pub name: String,
-
-    // TODO, open file
+    pub open_file: Vec<&'static File>,
 }
 
 unsafe impl Send for ProcessData {}
@@ -37,6 +38,7 @@ impl ProcessData {
             context: Context::new(),
             current_dir: None,
             name: String::new(),
+            open_file: Vec::new(),
         }
     }
 }

@@ -31,6 +31,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7313c0d620d0cb4dbd9d019e461a4beb501071ff46ec0ab933efb4daa76d73e3"
 
 [[package]]
+name = "file_control_lib"
+version = "0.1.0"
+
+[[package]]
 name = "file_system_lib"
 version = "0.1.0"
 
@@ -107,6 +111,7 @@ dependencies = [
  "array-macro",
  "bitflags",
  "cstr_core",
+ "file_control_lib",
  "file_system_lib",
  "lazy_static",
  "linked_list_allocator",

@@ -238,7 +238,7 @@ impl INode {
     }
 
     // Write a new directory entry (name, inum) into the directory dp.
-    pub fn dir_link(&self, name: &String, inum: u32) -> Option<()> {
+    pub fn dir_link(&self, name: &String, inum: u32) -> bool {
         let data = self.data();
 
         let ip = self.dir_lookup(name, null_mut());
@@ -246,7 +246,7 @@ impl INode {
         // Check that name is not present.
         if ip.is_some() {
             ICACHE.put(self);
-            return None;
+            return false;
         }
 
         let mut de = Dirent {
@@ -280,7 +280,7 @@ impl INode {
             panic!("dirlink");
         }
 
-        Some(())
+        true
     }
 }
 

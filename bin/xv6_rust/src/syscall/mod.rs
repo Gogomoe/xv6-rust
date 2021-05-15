@@ -6,8 +6,10 @@ use lazy_static::lazy_static;
 use crate::memory::copy_in_string;
 use crate::process::CPU_MANAGER;
 use crate::syscall::exec::sys_exec;
+use crate::syscall::file::sys_open;
 
 pub mod exec;
+pub mod file;
 
 #[derive(Clone)]
 pub struct SystemCall {
@@ -17,6 +19,7 @@ pub struct SystemCall {
 }
 
 static SYSCALL_EXEC: SystemCall = SystemCall { name: "exec", id: 7, func: sys_exec };
+static SYSCALL_OPEN: SystemCall = SystemCall { name: "open", id: 15, func: sys_open };
 
 lazy_static! {
     pub static ref SYSTEM_CALL: BTreeMap<usize, SystemCall> = {
@@ -26,6 +29,7 @@ lazy_static! {
             map.insert(it.id, it);
         };
         insert(SYSCALL_EXEC.clone());
+        insert(SYSCALL_OPEN.clone());
         map
     };
 }
