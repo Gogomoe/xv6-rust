@@ -101,7 +101,7 @@ impl FileTable {
             if major >= MAX_DEV_NUMBER as u16 || devices[major as usize].read.is_none() {
                 return u64::max_value();
             }
-            devices[major as usize].read.unwrap().call((addr, size)) as u64
+            devices[major as usize].read.unwrap().call((true, addr, size)) as u64
         } else if file.data().types == INODE {
             todo!();
         } else {
@@ -125,7 +125,7 @@ impl FileTable {
             if major >= MAX_DEV_NUMBER as u16 || devices[major as usize].write.is_none() {
                 return u64::max_value();
             }
-            return devices[major as usize].write.unwrap().call((addr, size)) as u64;
+            return devices[major as usize].write.unwrap().call((true, addr, size)) as u64;
         } else if file.data().types == INODE {
             todo!();
         } else {

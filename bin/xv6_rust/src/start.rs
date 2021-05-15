@@ -1,10 +1,11 @@
 use core::sync::atomic::{AtomicBool, Ordering};
 
+use param_lib::MAX_CPU_NUMBER;
+
 use crate::driver::DISK;
 use crate::memory::layout::CLINT;
 use crate::memory::PHYSICAL_MEMORY;
 use crate::process::PROCESS_MANAGER;
-use param_lib::MAX_CPU_NUMBER;
 
 #[no_mangle]
 pub unsafe fn start() -> ! {
@@ -86,7 +87,7 @@ pub unsafe fn main() -> ! {
 
     let cpuid = crate::riscv::read_tp();
     if cpuid == 0 {
-        crate::console::uart::uart_init();
+        crate::console::console_init();
         println!("xv6 kernel is booting");
         PHYSICAL_MEMORY.init();
         crate::memory::virtual_memory::virtual_memory_init();

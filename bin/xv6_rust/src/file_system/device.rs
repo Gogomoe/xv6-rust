@@ -1,8 +1,8 @@
 use param_lib::MAX_DEV_NUMBER;
 
 pub struct Device {
-    pub read: Option<fn(usize, usize) -> usize>,
-    pub write: Option<fn(usize, usize) -> usize>,
+    pub read: Option<fn(bool, usize, usize) -> usize>,
+    pub write: Option<fn(bool, usize, usize) -> usize>,
 }
 
 impl Device {
@@ -16,4 +16,4 @@ impl Device {
 
 pub static mut DEVICES: [Device; MAX_DEV_NUMBER] = array![_ => Device::new(); MAX_DEV_NUMBER];
 
-pub const CONSOLE: usize = 1;
+pub const CONSOLE_ID: usize = 1;

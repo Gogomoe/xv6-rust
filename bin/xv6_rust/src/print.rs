@@ -1,7 +1,10 @@
 use core::fmt;
+use core::sync::atomic::{AtomicBool, Ordering};
 
 use crate::console;
 use crate::spin_lock::SpinLock;
+
+pub static PANICKED: AtomicBool = AtomicBool::new(false);
 
 struct ConsolePrinter {}
 
@@ -59,5 +62,6 @@ macro_rules! assert {
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{}", info);
+    PANICKED.store(true, Ordering::Relaxed); // freeze uart output from other CPUs
     loop {}
 }

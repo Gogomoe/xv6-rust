@@ -1,9 +1,11 @@
 #![allow(dead_code)]
 
 use core::ptr;
+use core::sync::atomic::Ordering;
 
 use crate::console::console_intr;
-use crate::process::PROCESS_MANAGER;
+use crate::print::PANICKED;
+use crate::process::{CPU_MANAGER, PROCESS_MANAGER};
 use crate::spin_lock::SpinLock;
 
 const UART0: usize = 0x10000000;
@@ -26,7 +28,7 @@ const LSR_TX_IDLE: u8 = 1 << 5;    /* THR can accept another character to send *
 
 static UART_LOCK: SpinLock<()> = SpinLock::new((), "uart");
 const UART_TX_BUF_SIZE: usize = 32;
-const UART_TX_BUF: [u8; UART_TX_BUF_SIZE] = [0; UART_TX_BUF_SIZE];
+static mut UART_TX_BUF: [u8; UART_TX_BUF_SIZE] = [0; UART_TX_BUF_SIZE];
 static mut UART_TX_W: usize = 0; /* write next to uart_tx_buf[uart_tx_w++] */
 static mut UART_TX_R: usize = 0; /* read next from uart_tx_buf[uar_tx_r++] */
 
@@ -68,13 +70,55 @@ pub fn uart_init() {
     write_reg!(IER, IER_TX_ENABLE | IER_RX_ENABLE);
 }
 
+// add a character to the output buffer and tell the
+// UART to start sending if it isn't already.
+// blocks if the output buffer is full.
+// because it may block, it can't be called
+// from interrupts; it's only suitable for use
+// by write().
+pub fn uart_put_char(c: u8) {
+    let mut guard = UART_LOCK.lock();
+
+    if PANICKED.load(Ordering::Relaxed) {
+        loop {}
+    }
+
+    loop {
+        if unsafe { UART_TX_W == UART_TX_R + UART_TX_BUF_SIZE } {
+            // buffer is full.
+            // wait for uartstart() to open up space in the buffer.\
+            unsafe {
+                CPU_MANAGER.my_cpu_mut().sleep(&UART_TX_R as *const _ as usize, guard);
+            }
+            guard = UART_LOCK.lock();
+        } else {
+            unsafe {
+                UART_TX_BUF[UART_TX_W % UART_TX_BUF_SIZE] = c;
+                UART_TX_W += 1;
+            }
+            uart_start();
+            drop(guard);
+            return;
+        }
+    }
+}
+
 // alternate version of uartputc() that doesn't
 // use interrupts, for use by kernel printf() and
 // to echo characters. it spins waiting for the uart's
 // output register to be empty.
 pub fn uart_put_char_sync(c: u8) {
+    let cpu = CPU_MANAGER.my_cpu_mut();
+    cpu.push_off();
+
+    if PANICKED.load(Ordering::Relaxed) {
+        loop {}
+    }
+
     while (read_reg!(LSR) & LSR_TX_IDLE) == 0 {}
     write_reg!(THR, c);
+
+    cpu.pop_off();
 }
 
 // if the UART is idle, and a character is waiting
@@ -131,6 +175,7 @@ pub fn uart_intr() {
         console_intr(c.unwrap());
     }
 
-    UART_LOCK.lock();
+    let guard = UART_LOCK.lock();
     uart_start();
+    drop(guard);
 }
