@@ -82,7 +82,7 @@ pub fn find_inode(path: &String) -> Option<&'static INode> {
     return unsafe { ip.as_ref() };
 }
 
-pub fn find_inode_parent(path: &String) -> Option<(&INode, String)> {
+pub fn find_inode_parent(path: &String) -> Option<(&'static INode, String)> {
     let mut ip: *const INode = if path.starts_with("/") {
         ICACHE.get(ROOT_DEV, ROOT_INO) as *const INode
     } else {

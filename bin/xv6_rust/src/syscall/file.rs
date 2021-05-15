@@ -1,16 +1,30 @@
 use alloc::string::String;
 use core::ptr::null_mut;
 
-use file_control_lib::{OPEN_CREATE, OPEN_READ_ONLY};
+use file_control_lib::{OPEN_CREATE, OPEN_READ_ONLY, OPEN_READ_WRITE, OPEN_TRUNC, OPEN_WRITE_ONLY};
 use file_system_lib::{TYPE_DEVICE, TYPE_DIR, TYPE_FILE};
+use param_lib::MAX_DEV_NUMBER;
 
+use crate::file_system::{FILE_TABLE, LOG};
+use crate::file_system::file::FileType::{DEVICE, INODE};
 use crate::file_system::inode::{ICACHE, INode};
-use crate::file_system::LOG;
 use crate::file_system::path::{find_inode, find_inode_parent};
+use crate::process::CPU_MANAGER;
 use crate::sleep_lock::SleepLockGuard;
 use crate::syscall::{read_arg_string, read_arg_usize};
 
-fn create(path: &String, types: u16, major: u16, minor: u16) -> Option<(&INode, SleepLockGuard<()>)> {
+fn fd_alloc() -> Option<usize> {
+    let process = CPU_MANAGER.my_proc();
+    let open_files = process.data().open_file;
+    for i in 0..open_files.len() {
+        if open_files[i].is_null() {
+            return Some(i);
+        }
+    }
+    return None;
+}
+
+fn create(path: &String, types: u16, major: u16, minor: u16) -> Option<(&'static INode, SleepLockGuard<()>)> {
     let dp = find_inode_parent(path);
     if dp.is_none() {
         return None;
@@ -94,6 +108,47 @@ pub fn sys_open() -> u64 {
         (ip, guard)
     };
 
-    todo!()
+    if ip.data().types == TYPE_DEVICE && ip.data().major >= MAX_DEV_NUMBER as u16 {
+        ip.unlock_put(guard);
+        log.end_op();
+        return u64::max_value();
+    }
+
+    let file = FILE_TABLE.alloc();
+    if file.is_none() {
+        ip.unlock_put(guard);
+        log.end_op();
+        return u64::max_value();
+    }
+    let file = file.unwrap();
+
+    let fd = fd_alloc();
+    if fd.is_none() {
+        FILE_TABLE.close(file);
+        ip.unlock_put(guard);
+        log.end_op();
+        return u64::max_value();
+    }
+    let fd = fd.unwrap();
+
+    if ip.data().types == TYPE_DEVICE {
+        file.data().types = DEVICE;
+        file.data().major = ip.data().major;
+    } else {
+        file.data().types = INODE;
+        file.data().off = 0;
+    }
+    file.data().ip = Some(ip);
+    file.data().readable = mode & OPEN_WRITE_ONLY == 0;
+    file.data().writable = (mode & OPEN_WRITE_ONLY != 0) || (mode & OPEN_READ_WRITE != 0);
+
+    if mode & OPEN_TRUNC != 0 && ip.data().types == TYPE_FILE {
+        ip.truncate();
+    }
+
+    ip.unlock(guard);
+    log.end_op();
+
+    return fd as u64;
 }
 

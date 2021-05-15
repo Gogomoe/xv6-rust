@@ -3,6 +3,7 @@ use core::ptr;
 
 pub use buffer_cache::BLOCK_CACHE;
 use file_system_lib::{bblock, BLOCK_SIZE, BPB, FSMAGIC, SuperBlock};
+pub use file_table::FILE_TABLE;
 pub use logging::LOG;
 
 pub mod buffer_cache;
@@ -12,6 +13,7 @@ pub mod path;
 pub mod elf;
 pub mod file;
 pub mod pipe;
+pub mod file_table;
 
 pub fn file_system_init(dev: u32) {
     unsafe {
