@@ -152,3 +152,30 @@ pub fn sys_open() -> u64 {
     return fd as u64;
 }
 
+pub fn sys_mknod() -> u64 {
+    let log = unsafe { &mut LOG };
+
+    let path = read_arg_string(0);
+    let major = read_arg_usize(1) as u16;
+    let minor = read_arg_usize(2) as u16;
+
+    if path.is_none() {
+        return u64::max_value();
+    }
+    let path = path.unwrap();
+
+    log.begin_op();
+
+    let result = create(&path, TYPE_DEVICE, major, minor);
+    if result.is_none() {
+        log.end_op();
+        return u64::max_value();
+    }
+
+    let (ip, guard) = result.unwrap();
+    ip.unlock_put(guard);
+
+    log.end_op();
+
+    return 0;
+}

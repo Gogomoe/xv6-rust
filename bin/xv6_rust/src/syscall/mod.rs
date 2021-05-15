@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use crate::memory::copy_in_string;
 use crate::process::CPU_MANAGER;
 use crate::syscall::exec::sys_exec;
-use crate::syscall::file::sys_open;
+use crate::syscall::file::{sys_open, sys_mknod};
 
 pub mod exec;
 pub mod file;
@@ -20,6 +20,7 @@ pub struct SystemCall {
 
 static SYSCALL_EXEC: SystemCall = SystemCall { name: "exec", id: 7, func: sys_exec };
 static SYSCALL_OPEN: SystemCall = SystemCall { name: "open", id: 15, func: sys_open };
+static SYSCALL_MKNOD: SystemCall = SystemCall { name: "mknod", id: 17, func: sys_mknod };
 
 lazy_static! {
     pub static ref SYSTEM_CALL: BTreeMap<usize, SystemCall> = {
@@ -30,6 +31,7 @@ lazy_static! {
         };
         insert(SYSCALL_EXEC.clone());
         insert(SYSCALL_OPEN.clone());
+        insert(SYSCALL_MKNOD.clone());
         map
     };
 }
@@ -51,7 +53,7 @@ pub fn system_call() {
             println!("{} {}: unknown system call {}", process.info().pid, process.data().name, num);
             u64::max_value()
         }
-    }
+    };
 }
 
 fn read_arg_content(pos: usize) -> u64 {
