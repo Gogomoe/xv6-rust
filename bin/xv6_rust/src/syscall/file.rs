@@ -35,7 +35,7 @@ fn read_arg_fd(pos: usize) -> Option<(usize, &'static File)> {
 // Takes over file reference from caller on success.
 fn fd_alloc(file: &File) -> Option<usize> {
     let process = CPU_MANAGER.my_proc();
-    let mut open_files = process.data().open_file;
+    let open_files = &mut process.data().open_file;
     for i in 0..open_files.len() {
         if open_files[i].is_null() {
             open_files[i] = file as *const File;
