@@ -116,6 +116,48 @@ pub fn dealloc_user_virtual_memory(page_table: &mut ActivePageTable, old_size: u
     return new_size;
 }
 
+// Given a parent process's page table, copy
+// its memory into a child's page table.
+// Copies both the page table and the
+// physical memory.
+// returns 0 on success, -1 on failure.
+// frees any allocated pages on failure.
+pub fn copy_page_table(old: &ActivePageTable, new: &mut ActivePageTable, size: usize) -> bool {
+    for va in (0..size).step_by(PAGE_SIZE) {
+        let pa = old.translate(va);
+        assert!(pa.is_some());
+        let pa = pa.unwrap();
+        let flags = old.read_flags(&Page::from_virtual_address(va)).unwrap();
+
+        let frame = match PHYSICAL_MEMORY.alloc() {
+            None => {
+                for j in (0..va).step_by(PAGE_SIZE) {
+                    new.unmap(Page::from_virtual_address(j));
+                }
+                return false;
+            }
+            Some(it) => { it }
+        };
+
+        unsafe {
+            ptr::copy(pa as *const u8, frame.addr() as *mut u8, PAGE_SIZE);
+        }
+
+        match new.map(Page::from_virtual_address(va), frame, flags) {
+            Err(frame) => {
+                PHYSICAL_MEMORY.dealloc(frame);
+                for j in (0..va).step_by(PAGE_SIZE) {
+                    new.unmap(Page::from_virtual_address(j));
+                }
+                return false;
+            }
+            Ok(_) => {}
+        }
+    }
+
+    return true;
+}
+
 // mark a PTE invalid for user access.
 // used by exec for the user stack guard page.
 pub fn make_guard_page(page_table: &mut ActivePageTable, va: usize) {

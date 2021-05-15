@@ -7,9 +7,11 @@ use crate::memory::copy_in_string;
 use crate::process::CPU_MANAGER;
 use crate::syscall::exec::sys_exec;
 use crate::syscall::file::{sys_close, sys_dup, sys_mknod, sys_open, sys_read, sys_write};
+use crate::syscall::process::{sys_exit, sys_fork, sys_wait};
 
 pub mod exec;
 pub mod file;
+pub mod process;
 
 #[derive(Clone)]
 pub struct SystemCall {
@@ -18,6 +20,9 @@ pub struct SystemCall {
     func: fn() -> u64,
 }
 
+static SYSCALL_FORK: SystemCall = SystemCall { name: "fork", id: 1, func: sys_fork };
+static SYSCALL_EXIT: SystemCall = SystemCall { name: "exit", id: 2, func: sys_exit };
+static SYSCALL_WAIT: SystemCall = SystemCall { name: "wait", id: 3, func: sys_wait };
 static SYSCALL_READ: SystemCall = SystemCall { name: "read", id: 5, func: sys_read };
 static SYSCALL_EXEC: SystemCall = SystemCall { name: "exec", id: 7, func: sys_exec };
 static SYSCALL_DUP: SystemCall = SystemCall { name: "dup", id: 10, func: sys_dup };
@@ -33,6 +38,9 @@ lazy_static! {
             assert!(map.get(&it.id).is_none());
             map.insert(it.id, it);
         };
+        insert(SYSCALL_FORK.clone());
+        insert(SYSCALL_EXIT.clone());
+        insert(SYSCALL_WAIT.clone());
         insert(SYSCALL_READ.clone());
         insert(SYSCALL_EXEC.clone());
         insert(SYSCALL_DUP.clone());

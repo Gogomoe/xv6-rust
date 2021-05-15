@@ -1,10 +1,11 @@
 use alloc::string::String;
 use core::cell::UnsafeCell;
-use core::ptr::null_mut;
+use core::ptr::{null, null_mut};
+use core::ptr;
 
-use param_lib::{MAX_PROCESS_NUMBER, ROOT_DEV};
+use param_lib::{MAX_OPEN_FILE_NUMBER, MAX_PROCESS_NUMBER, ROOT_DEV};
 
-use crate::file_system::file_system_init;
+use crate::file_system::{file_system_init, FILE_TABLE};
 use crate::file_system::path::find_inode;
 use crate::memory::{KERNEL_PAGETABLE, Page, PAGE_SIZE, PHYSICAL_MEMORY, user_virtual_memory};
 use crate::memory::layout::{KERNEL_STACK_PAGE_COUNT, TRAMPOLINE, TRAPFRAME};
@@ -15,7 +16,7 @@ use crate::process::process::Process;
 use crate::process::process::ProcessState::{RUNNABLE, RUNNING, SLEEPING, UNUSED, ZOMBIE};
 use crate::process::trap_frame::TrapFrame;
 use crate::riscv::{intr_on, sfence_vma};
-use crate::spin_lock::SpinLock;
+use crate::spin_lock::{SpinLock, SpinLockGuard};
 use crate::trap::user_trap_return;
 
 pub struct ProcessManager {
@@ -155,12 +156,11 @@ impl ProcessManager {
     }
 
     pub unsafe fn user_init(&self) {
-        let process = self.alloc_process().unwrap();
+        let (process, guard) = self.alloc_process().unwrap();
 
         (*self.init_process.get()) = process as *const Process;
 
         let mut data = process.data();
-        let guard = process.lock.lock();
         let info = &mut process.info();
 
         user_virtual_memory::init(data.page_table.as_mut().unwrap());
@@ -181,7 +181,7 @@ impl ProcessManager {
     // If found, initialize state required to run in the kernel,
     // and return with p->lock held.
     // If there are no free procs, or a memory allocation fails, return 0.
-    pub fn alloc_process(&self) -> Option<&Process> {
+    pub fn alloc_process(&self) -> Option<(&Process, SpinLockGuard<()>)> {
         for process in self.processes.iter() {
             let guard = process.lock.lock();
             let info = process.info();
@@ -215,8 +215,7 @@ impl ProcessManager {
                 data.context.ra = fork_return as u64;
                 data.context.sp = data.kernel_stack as u64;
 
-                drop(guard);
-                return Some(process);
+                return Some((process, guard));
             }
 
             drop(guard);
@@ -263,6 +262,56 @@ impl ProcessManager {
         info.exit_state = 0;
     }
 
+    pub fn fork(&self) -> Option<usize> {
+        let process = CPU_MANAGER.my_proc();
+
+        // Allocate process.
+        let (new_process, guard) = match self.alloc_process() {
+            Some(p) => { p }
+            None => { return None; }
+        };
+
+        // Copy user memory from parent to child.
+        let copy_result = user_virtual_memory::copy_page_table(
+            process.data().page_table.as_ref().unwrap(),
+            new_process.data().page_table.as_mut().unwrap(),
+            process.data().size,
+        );
+        if !copy_result {
+            self.free_precess(new_process);
+            drop(guard);
+            return None;
+        }
+
+        new_process.data().size = process.data().size;
+        new_process.info().parent = Some(process);
+
+        unsafe {
+            // copy saved user registers.
+            ptr::copy(process.data().trap_frame, new_process.data().trap_frame, 1);
+
+            // Cause fork to return 0 in the child.
+            new_process.data().trap_frame.as_mut().unwrap().a0 = 0;
+        }
+
+        // increment reference counts on open file descriptors.
+        for i in 0..MAX_OPEN_FILE_NUMBER {
+            let file = process.data().open_file[i];
+            if !file.is_null() {
+                new_process.data().open_file[i] = FILE_TABLE.dup(unsafe { file.as_ref() }.unwrap());
+            }
+        }
+        new_process.data().current_dir = Some(process.data().current_dir.unwrap().dup());
+        new_process.data().name = process.data().name.clone();
+
+        let pid = new_process.info().pid;
+
+        new_process.info().state = RUNNABLE;
+        drop(guard);
+
+        return Some(pid);
+    }
+
     // Exit the current process.  Does not return.
     // An exited process remains in the zombie state
     // until its parent calls wait().
@@ -271,7 +320,14 @@ impl ProcessManager {
 
         assert_ne!(process as *const _, self.init_process() as *const _);
 
-        // TODO close open files
+        // close all open files
+        for fd in 0..MAX_OPEN_FILE_NUMBER {
+            if !process.data().open_file[fd].is_null() {
+                let file = unsafe { process.data().open_file[fd].as_ref() }.unwrap();
+                FILE_TABLE.close(file);
+                process.data().open_file[fd] = null();
+            }
+        }
 
         // we might re-parent a child to init. we can't be precise about
         // waking up init, since we can't acquire its lock once we've
