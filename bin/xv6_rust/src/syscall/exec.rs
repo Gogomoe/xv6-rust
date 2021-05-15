@@ -7,7 +7,7 @@ use cstr_core::CString;
 use param_lib::MAX_ARG;
 
 use crate::file_system::elf::{ELF_MAGIC, ELF_PROG_LOAD, ElfHeader, ProgramHeader};
-use crate::file_system::inode::{ICACHE, INode};
+use crate::file_system::inode::INode;
 use crate::file_system::LOG;
 use crate::file_system::path::find_inode;
 use crate::memory::{ActivePageTable, copy_in, copy_in_string, copy_out, page_round_up, PAGE_SIZE};
@@ -82,16 +82,14 @@ fn load_program(path: &String) -> Option<(ActivePageTable, usize, ElfHeader)> {
     // Check ELF header
     let mut elf_header = ElfHeader::new();
     if !check_elf_header(&mut elf_header, ip) {
-        ip.unlock(guard);
-        ICACHE.put(ip);
+        ip.unlock_put(guard);
         log.end_op();
         return None;
     }
 
     let page_table = user_virtual_memory::alloc_page_table(CPU_MANAGER.my_proc().data().trap_frame);
     if page_table.is_none() {
-        ip.unlock(guard);
-        ICACHE.put(ip);
+        ip.unlock_put(guard);
         log.end_op();
         return None;
     }
@@ -102,15 +100,13 @@ fn load_program(path: &String) -> Option<(ActivePageTable, usize, ElfHeader)> {
         Ok(sz) => { sz }
         Err(sz) => {
             user_virtual_memory::free_page_table(page_table, sz);
-            ip.unlock(guard);
-            ICACHE.put(ip);
+            ip.unlock_put(guard);
             log.end_op();
             return None;
         }
     };
 
-    ip.unlock(guard);
-    ICACHE.put(ip);
+    ip.unlock_put(guard);
     log.end_op();
 
     return Some((page_table, size, elf_header));

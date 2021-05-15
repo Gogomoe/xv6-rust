@@ -65,18 +65,15 @@ pub fn find_inode(path: &String) -> Option<&'static INode> {
         let (name, remain_path) = next_level.unwrap();
         let guard = ip_ref.lock();
         if ip_ref.data().types != TYPE_DIR {
-            ip_ref.unlock(guard);
-            ICACHE.put(ip_ref);
+            ip_ref.unlock_put(guard);
             return None;
         }
         let next_dir = ip_ref.dir_lookup(&name, null_mut());
         if next_dir.is_none() {
-            ip_ref.unlock(guard);
-            ICACHE.put(ip_ref);
+            ip_ref.unlock_put(guard);
             return None;
         }
-        ip_ref.unlock(guard);
-        ICACHE.put(ip_ref);
+        ip_ref.unlock_put(guard);
 
         ip = next_dir.unwrap();
         next_level = split_path(&remain_path);
@@ -104,8 +101,7 @@ pub fn find_inode_parent(path: &String) -> Option<(&INode, String)> {
         let (name, remain_path) = next_level.unwrap();
         let guard = ip_ref.lock();
         if ip_ref.data().types != TYPE_DIR {
-            ip_ref.unlock(guard);
-            ICACHE.put(ip_ref);
+            ip_ref.unlock_put(guard);
             return None;
         }
         if remain_path.is_empty() {
@@ -115,12 +111,10 @@ pub fn find_inode_parent(path: &String) -> Option<(&INode, String)> {
         }
         let next_dir = ip_ref.dir_lookup(&name, null_mut());
         if next_dir.is_none() {
-            ip_ref.unlock(guard);
-            ICACHE.put(ip_ref);
+            ip_ref.unlock_put(guard);
             return None;
         }
-        ip_ref.unlock(guard);
-        ICACHE.put(ip_ref);
+        ip_ref.unlock_put(guard);
 
         ip = next_dir.unwrap();
         next_level = split_path(&remain_path);

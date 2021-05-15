@@ -354,6 +354,11 @@ impl INode {
         drop(guard);
     }
 
+    pub fn unlock_put(&self, guard: SleepLockGuard<()>) {
+        self.unlock(guard);
+        ICACHE.put(self);
+    }
+
     // Truncate inode (discard contents).
     // Caller must hold ip->lock.
     pub fn truncate(&self) {

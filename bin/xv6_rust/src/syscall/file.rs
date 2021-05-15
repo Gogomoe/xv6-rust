@@ -21,15 +21,13 @@ fn create(path: &String, types: u16, major: u16, minor: u16) -> Option<(&INode, 
 
     match dp.dir_lookup(&name, null_mut()) {
         Some(ip) => {
-            dp.unlock(dp_guard);
-            ICACHE.put(dp);
+            dp.unlock_put(dp_guard);
 
             let guard = ip.lock();
             if types == TYPE_FILE && (ip.data().types == TYPE_FILE || ip.data().types == TYPE_DEVICE) {
                 return Some((ip, guard));
             }
-            ip.unlock(guard);
-            ICACHE.put(ip);
+            ip.unlock_put(guard);
             return None;
         }
         _ => {}
@@ -56,8 +54,7 @@ fn create(path: &String, types: u16, major: u16, minor: u16) -> Option<(&INode, 
         panic!("create: dirlink");
     }
 
-    dp.unlock(dp_guard);
-    ICACHE.put(dp);
+    dp.unlock_put(dp_guard);
 
     return Some((ip, guard));
 }
@@ -90,8 +87,7 @@ pub fn sys_open() -> u64 {
         let ip = result.unwrap();
         let guard = ip.lock();
         if ip.data().types == TYPE_DIR && mode != OPEN_READ_ONLY {
-            ip.unlock(guard);
-            ICACHE.put(ip);
+            ip.unlock_put(guard);
             log.end_op();
             return u64::max_value();
         }
