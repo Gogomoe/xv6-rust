@@ -200,6 +200,7 @@ impl Log {
         }
 
         // Add new block to log
+        self.header.block[self.header.n] = buffer.block_no() as usize;
         BLOCK_CACHE.pin(&buffer);
         self.header.n += 1;
         drop(guard);

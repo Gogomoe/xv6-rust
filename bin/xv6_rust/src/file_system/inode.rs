@@ -342,6 +342,9 @@ impl INode {
             }
             BLOCK_CACHE.release(bp);
             data.valid = true;
+            if data.types == 0 {
+                panic!("err");
+            }
             assert_ne!(data.types, 0);
         }
 
@@ -412,7 +415,7 @@ impl ICache {
             let dip = unsafe { (bp.data() as *mut INodeDisk).offset((inum % IPB) as isize).as_mut() }.unwrap();
             if dip.types == 0 { // a free inode
                 unsafe {
-                    ptr::write_bytes(dip as *mut INodeDisk, 0, size_of::<INodeDisk>());
+                    ptr::write_bytes(dip as *mut INodeDisk, 0, 1);
                 }
                 dip.types = types;
                 log.write(&bp);

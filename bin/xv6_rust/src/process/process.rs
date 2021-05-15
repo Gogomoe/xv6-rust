@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use alloc::string::String;
 use core::cell::UnsafeCell;
 use core::fmt;
