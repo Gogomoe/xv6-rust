@@ -139,10 +139,10 @@ pub fn uart_start() {
             return;
         }
 
-        let c = unsafe { UART_TX_BUF[UART_TX_R] };
+        let c = unsafe { UART_TX_BUF[UART_TX_R % UART_TX_BUF_SIZE] };
 
         unsafe {
-            UART_TX_R = (UART_TX_R + 1) % UART_TX_BUF_SIZE;
+            UART_TX_R = UART_TX_R + 1;
         }
 
         // maybe uartputc() is waiting for space in the buffer.
