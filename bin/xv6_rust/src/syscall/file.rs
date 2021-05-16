@@ -1,5 +1,5 @@
 use alloc::string::String;
-use core::ptr::{null_mut, null};
+use core::ptr::{null, null_mut};
 
 use file_control_lib::{OPEN_CREATE, OPEN_READ_ONLY, OPEN_READ_WRITE, OPEN_TRUNC, OPEN_WRITE_ONLY};
 use file_system_lib::{TYPE_DEVICE, TYPE_DIR, TYPE_FILE};

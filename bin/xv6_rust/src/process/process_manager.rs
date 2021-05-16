@@ -262,6 +262,32 @@ impl ProcessManager {
         info.exit_state = 0;
     }
 
+    pub fn grow_process(&self, n: isize) -> bool {
+        let process = CPU_MANAGER.my_proc();
+        let old_size = process.data().size;
+        let page_table = process.data().page_table.as_mut().unwrap();
+
+
+        let new_size = old_size as isize + n;
+        if new_size < 0 {
+            return false;
+        }
+        let new_size = new_size as usize;
+
+        return if n > 0 {
+            match user_virtual_memory::alloc_user_virtual_memory(page_table, old_size, new_size) {
+                Some(new_size) => {
+                    process.data().size = new_size;
+                    true
+                }
+                None => { false }
+            }
+        } else {
+            process.data().size = user_virtual_memory::dealloc_user_virtual_memory(page_table, old_size, new_size);
+            true
+        };
+    }
+
     pub fn fork(&self) -> Option<usize> {
         let process = CPU_MANAGER.my_proc();
 
