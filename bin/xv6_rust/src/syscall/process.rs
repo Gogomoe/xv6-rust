@@ -1,3 +1,6 @@
+use core::intrinsics::size_of;
+
+use crate::memory::either_copy_out;
 use crate::process::PROCESS_MANAGER;
 use crate::syscall::read_arg_usize;
 
@@ -12,5 +15,12 @@ pub fn sys_fork() -> u64 {
 }
 
 pub fn sys_wait() -> u64 {
-    todo!()
+    match PROCESS_MANAGER.wait_child() {
+        None => { u64::max_value() }
+        Some((pid, exit_state)) => {
+            let addr = read_arg_usize(0);
+            either_copy_out(true, addr, &exit_state as *const _ as usize, size_of::<i32>());
+            pid as u64
+        }
+    }
 }
