@@ -72,7 +72,7 @@ impl INode {
             ino: self.data().inum,
             types: self.data().types,
             nlink: self.data().nlink,
-            size: self.data().size,
+            size: self.data().size as u64,
         }
     }
 

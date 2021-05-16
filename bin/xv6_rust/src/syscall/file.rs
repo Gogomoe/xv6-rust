@@ -101,6 +101,22 @@ pub fn sys_close() -> u64 {
     return 0;
 }
 
+pub fn sys_fstat() -> u64 {
+    let (_, file) = match read_arg_fd(0) {
+        None => {
+            return u64::max_value();
+        }
+        Some(it) => { it }
+    };
+    let addr = read_arg_usize(1);
+
+    return if FILE_TABLE.stat(file, addr) {
+        0
+    } else {
+        u64::max_value()
+    };
+}
+
 
 fn create(path: &String, types: u16, major: u16, minor: u16) -> Option<(&'static INode, SleepLockGuard<()>)> {
     let dp = find_inode_parent(path);
