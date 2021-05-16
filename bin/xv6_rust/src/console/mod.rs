@@ -88,7 +88,7 @@ pub fn console_read(user_dst: bool, mut dst: usize, mut n: usize) -> usize {
 
         // copy the input byte to the user-space buffer.
         let c_buf = c;
-        if !either_copy_out(user_dst, dst, c_buf as *const u8 as usize, 1) {
+        if !either_copy_out(user_dst, dst, &c_buf as *const u8 as usize, 1) {
             break;
         }
 
