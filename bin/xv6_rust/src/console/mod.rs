@@ -88,7 +88,7 @@ pub fn console_read(user_dst: bool, mut dst: usize, mut n: usize) -> usize {
 
         // copy the input byte to the user-space buffer.
         let c_buf = c;
-        if !either_copy_out(user_dst, dst, c_buf as *const u8 as usize, 1) {
+        if !either_copy_out(user_dst, dst, &c_buf as *const u8 as usize, 1) {
             break;
         }
 
@@ -136,7 +136,7 @@ pub fn console_intr(char: u8) {
             if char != 0 && console.edit - console.read < INPUT_BUFFER {
                 let char = if char == b'\r' { b'\n' } else { char };
                 console_put_char(char);
-                console.buffer[console.edit & INPUT_BUFFER] = char;
+                console.buffer[console.edit % INPUT_BUFFER] = char;
                 console.edit += 1;
 
                 if char == b'\n' || char == CTRL_D || console.edit == console.read + INPUT_BUFFER {

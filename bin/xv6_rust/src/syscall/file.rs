@@ -1,5 +1,5 @@
 use alloc::string::String;
-use core::ptr::{null_mut, null};
+use core::ptr::{null, null_mut};
 
 use file_control_lib::{OPEN_CREATE, OPEN_READ_ONLY, OPEN_READ_WRITE, OPEN_TRUNC, OPEN_WRITE_ONLY};
 use file_system_lib::{TYPE_DEVICE, TYPE_DIR, TYPE_FILE};
@@ -99,6 +99,22 @@ pub fn sys_close() -> u64 {
     FILE_TABLE.close(file);
 
     return 0;
+}
+
+pub fn sys_fstat() -> u64 {
+    let (_, file) = match read_arg_fd(0) {
+        None => {
+            return u64::max_value();
+        }
+        Some(it) => { it }
+    };
+    let addr = read_arg_usize(1);
+
+    return if FILE_TABLE.stat(file, addr) {
+        0
+    } else {
+        u64::max_value()
+    };
 }
 
 

@@ -112,6 +112,23 @@ impl Cpu {
         process.info().channel = 0;
         drop(proc_guard);
     }
+
+    pub fn sleep_process_guard(&mut self, channel: usize, _guard: &SpinLockGuard<()>) {
+        let proc = self.my_proc();
+        assert!(!proc.is_null());
+        let process = unsafe { proc.as_ref().unwrap() };
+
+        assert!(process.lock.holding());
+
+        process.info().channel = channel;
+        process.info().state = SLEEPING;
+
+        unsafe {
+            self.scheduled();
+        }
+
+        process.info().channel = 0;
+    }
 }
 
 pub struct CpuManager {

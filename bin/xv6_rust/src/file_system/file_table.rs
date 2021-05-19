@@ -1,12 +1,15 @@
 use core::cell::UnsafeCell;
+use core::intrinsics::size_of;
 
-use param_lib::{MAX_DEV_NUMBER, MAX_FILE_NUMBER};
+use file_system_lib::{BLOCK_SIZE, FileStatus};
+use param_lib::{MAX_DEV_NUMBER, MAX_FILE_NUMBER, MAX_OP_BLOCKS};
 
 use crate::file_system::device::DEVICES;
 use crate::file_system::file::File;
 use crate::file_system::file::FileType::{DEVICE, INODE, NONE, PIPE};
 use crate::file_system::inode::ICACHE;
 use crate::file_system::LOG;
+use crate::memory::either_copy_out;
 use crate::spin_lock::SpinLock;
 
 pub struct FileTable {
@@ -85,6 +88,20 @@ impl FileTable {
         }
     }
 
+    // Get metadata about file f.
+    // addr is a user virtual address, pointing to a struct stat.
+    pub fn stat(&self, file: &File, addr: usize) -> bool {
+        if file.data().types == INODE || file.data().types == DEVICE {
+            let ip = file.data().ip.unwrap();
+            let guard = ip.lock();
+            let status = ip.status();
+            ip.unlock(guard);
+
+            return either_copy_out(true, addr, &status as *const _ as usize, size_of::<FileStatus>());
+        }
+        return false;
+    }
+
     // Read from file f.
     // addr is a user virtual address.
     pub fn read(&self, file: &File, addr: usize, size: usize) -> u64 {
@@ -103,7 +120,14 @@ impl FileTable {
             }
             devices[major as usize].read.unwrap().call((true, addr, size)) as u64
         } else if file.data().types == INODE {
-            todo!();
+            let ip = file.data().ip.unwrap();
+            let guard = ip.lock();
+            let read = ip.read(true, addr, file.data().off, size as u32);
+            if read > 0 {
+                file.data().off += read;
+            }
+            drop(guard);
+            read as u64
         } else {
             panic!("fileread");
         }
@@ -125,9 +149,42 @@ impl FileTable {
             if major >= MAX_DEV_NUMBER as u16 || devices[major as usize].write.is_none() {
                 return u64::max_value();
             }
-            return devices[major as usize].write.unwrap().call((true, addr, size)) as u64;
+            devices[major as usize].write.unwrap().call((true, addr, size)) as u64
         } else if file.data().types == INODE {
-            todo!();
+            // write a few blocks at a time to avoid exceeding
+            // the maximum log transaction size, including
+            // i-node, indirect block, allocation blocks,
+            // and 2 blocks of slop for non-aligned writes.
+            // this really belongs lower down, since writei()
+            // might be writing a device like the console.
+            let max = ((MAX_OP_BLOCKS - 1 - 1 - 2) / 2) * BLOCK_SIZE;
+            let log = unsafe { &mut LOG };
+            let ip = file.data().ip.unwrap();
+
+            let mut i = 0;
+            while i < size {
+                let mut n1 = size - i;
+                if n1 > max {
+                    n1 = max;
+                }
+
+                log.begin_op();
+                let guard = ip.lock();
+                let write = ip.write(true, addr + i, file.data().off, n1 as u32);
+                if write > 0 {
+                    file.data().off += write;
+                }
+                ip.unlock(guard);
+                log.end_op();
+
+                if write as usize != n1 {
+                    // error from writei
+                    break;
+                }
+                i += write as usize;
+            }
+
+            if i == size { size as u64 } else { u64::max_value() }
         } else {
             panic!("filewrite");
         }

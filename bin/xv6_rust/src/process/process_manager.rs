@@ -262,6 +262,32 @@ impl ProcessManager {
         info.exit_state = 0;
     }
 
+    pub fn grow_process(&self, n: isize) -> bool {
+        let process = CPU_MANAGER.my_proc();
+        let old_size = process.data().size;
+        let page_table = process.data().page_table.as_mut().unwrap();
+
+
+        let new_size = old_size as isize + n;
+        if new_size < 0 {
+            return false;
+        }
+        let new_size = new_size as usize;
+
+        return if n > 0 {
+            match user_virtual_memory::alloc_user_virtual_memory(page_table, old_size, new_size) {
+                Some(new_size) => {
+                    process.data().size = new_size;
+                    true
+                }
+                None => { false }
+            }
+        } else {
+            process.data().size = user_virtual_memory::dealloc_user_virtual_memory(page_table, old_size, new_size);
+            true
+        };
+    }
+
     pub fn fork(&self) -> Option<usize> {
         let process = CPU_MANAGER.my_proc();
 
@@ -310,6 +336,49 @@ impl ProcessManager {
         drop(guard);
 
         return Some(pid);
+    }
+
+    pub fn wait_child(&self) -> Option<(usize, i32)> {
+        let process = CPU_MANAGER.my_proc();
+
+        // hold p->lock for the whole time to avoid lost
+        // wakeups from a child's exit().
+        let guard = process.lock.lock();
+
+        loop {
+            // Scan through table looking for exited children.
+            let mut have_kids = false;
+
+            for np in self.processes.iter() {
+                // this code uses np->parent without holding np->lock.
+                // acquiring the lock first would cause a deadlock,
+                // since np might be an ancestor, and we already hold p->lock.
+                if np.info().parent.map_or(0, |it| it as *const _ as usize) != process as *const _ as usize {
+                    continue;
+                }
+
+                let kid_guard = np.lock.lock();
+                have_kids = true;
+
+                if np.info().state == ZOMBIE {
+                    // Found one.
+                    let pid = np.info().pid;
+                    let exit_state = np.info().exit_state;
+                    self.free_precess(np);
+                    drop(kid_guard);
+                    drop(guard);
+                    return Some((pid, exit_state));
+                }
+                drop(kid_guard);
+            }
+            // No point waiting if we don't have any children.
+            if !have_kids || process.info().killed {
+                drop(guard);
+                return None;
+            }
+
+            CPU_MANAGER.my_cpu().sleep_process_guard(process as *const _ as usize, &guard);
+        }
     }
 
     // Exit the current process.  Does not return.
