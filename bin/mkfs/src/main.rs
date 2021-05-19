@@ -51,7 +51,7 @@ lazy_static! {
     });
     static ref args: Vec<String> = {
         if env::args().len() < 2 {
-            eprintln!("Usage: mkfs fs.img files...\n");
+            eprintln!("Usage: mkfs fs.img files...");
             process::exit(1);
         }
         env::args().collect()
@@ -203,7 +203,6 @@ fn wsect<T>(sec: u32, buf: &[T]) {
         )
     })
     .expect("write");
-    fd.flush().expect("flush");
 }
 
 fn winode(inum: u32, ip: &INodeDisk) {
@@ -228,16 +227,13 @@ fn rinode(inum: u32, ip: &mut INodeDisk) {
 }
 
 fn rsect<T>(sec: u32, buf: &mut [T]) {
-    fsfd.lock()
-        .unwrap()
-        .seek(SeekFrom::Start(sec as u64 * BLOCK_SIZE as u64))
+    let mut fd = fsfd.lock().unwrap();
+    fd.seek(SeekFrom::Start(sec as u64 * BLOCK_SIZE as u64))
         .expect("lseek");
-    fsfd.lock()
-        .unwrap()
-        .read(unsafe {
-            slice::from_raw_parts_mut(buf as *mut _ as *mut u8, buf.len() * mem::size_of::<T>())
-        })
-        .expect("read");
+    fd.read(unsafe {
+        slice::from_raw_parts_mut(buf as *mut _ as *mut u8, buf.len() * mem::size_of::<T>())
+    })
+    .expect("read");
 }
 
 fn ialloc(t: u16) -> u32 {
@@ -253,14 +249,14 @@ fn ialloc(t: u16) -> u32 {
 }
 
 fn balloc(used: usize) {
-    println!("balloc: first {} blocks have been allocated\n", used);
+    println!("balloc: first {} blocks have been allocated", used);
     assert_eq!(true, used < BLOCK_SIZE * 8);
     let mut buf = [0u8; BLOCK_SIZE];
     for i in 0..used {
         buf[i / 8] = buf[i / 8] | (0x1 << (i % 8));
     }
     println!(
-        "balloc: write bitmap block at sector {}\n",
+        "balloc: write bitmap block at sector {}",
         sb.lock().unwrap().block_map_start
     );
     wsect(sb.lock().unwrap().block_map_start, &buf);
@@ -276,7 +272,6 @@ fn iappend<T>(inum: u32, xp: &mut T, mut n: usize) {
     println!("append inum {} at off {} sz {}", inum, off, n);
     while n > 0 {
         let x;
-        println!("{}\n", off);
         let fbn = off / BLOCK_SIZE;
         assert_eq!(true, fbn < MAX_FILE_COUNT);
         if fbn < DIRECTORY_COUNT {
