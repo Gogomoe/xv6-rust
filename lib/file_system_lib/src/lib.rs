@@ -36,7 +36,7 @@ impl SuperBlock {
 }
 
 pub const DIRECTORY_COUNT: usize = 12;
-pub const DIRECTORY_INNER_COUNT: usize = BLOCK_SIZE / size_of::<usize>();
+pub const DIRECTORY_INNER_COUNT: usize = BLOCK_SIZE / size_of::<u32>();
 pub const MAX_FILE_COUNT: usize = DIRECTORY_COUNT + DIRECTORY_INNER_COUNT;
 
 #[repr(C)]
@@ -51,7 +51,7 @@ pub struct INodeDisk {
 }
 
 impl INodeDisk {
-    const fn new() -> INodeDisk {
+    pub const fn new() -> INodeDisk {
         INodeDisk {
             types: 0,
             major: 0,

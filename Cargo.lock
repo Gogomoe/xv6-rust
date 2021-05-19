@@ -76,6 +76,7 @@ name = "mkfs"
 version = "0.1.0"
 dependencies = [
  "file_system_lib",
+ "lazy_static",
  "param_lib",
 ]
 

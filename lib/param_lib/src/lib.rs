@@ -17,3 +17,5 @@ pub const MAX_ARG: usize = 32;
 pub const MAX_OP_BLOCKS: usize = 10;
 pub const LOG_SIZE: usize = 3 * MAX_OP_BLOCKS;
 pub const BUFFER_SIZE: usize = 3 * MAX_OP_BLOCKS;
+
+pub const FILE_SYSTEM_SIZE: u32 = 200000;
