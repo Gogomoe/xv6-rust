@@ -19,9 +19,16 @@ script = [
     """
 ]
 
+[tasks.build_user]
+script = [
+    """
+    cargo rustc --package user --bin init --target riscv64gc-unknown-none-elf
+    """
+]
+
 [tasks.build_all]
 run_task = [
-    { name = ["build_xv6_rust", "build_mkfs"] }
+    { name = ["build_xv6_rust", "build_mkfs", "build_user"] }
 ]
 
 [tasks.run]

@@ -2,6 +2,7 @@
 members = [
     "bin/xv6_rust",
     "bin/mkfs",
+    "bin/user",
     "lib/param_lib",
     "lib/file_system_lib",
     "lib/file_control_lib"

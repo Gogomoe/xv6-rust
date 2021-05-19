@@ -106,6 +106,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "user"
+version = "0.1.0"
+
+[[package]]
 name = "xv6_rust"
 version = "0.1.0"
 dependencies = [
