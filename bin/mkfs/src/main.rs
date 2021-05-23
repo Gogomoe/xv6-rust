@@ -2,7 +2,7 @@ extern crate file_system_lib;
 extern crate param_lib;
 
 use file_system_lib::{
-    iblock, Dirent, INodeDisk, SuperBlock, BLOCK_SIZE, DIRECT_COUNT, NINDIRECT_COUNT,
+    iblock, Dirent, INodeDisk, SuperBlock, BLOCK_SIZE, DIRECT_COUNT, INDIRECT_COUNT,
     DIRECTORY_SIZE, FSMAGIC, IPB, MAX_FILE_COUNT, ROOT_INO, TYPE_DIR, TYPE_FILE,
 };
 use lazy_static::lazy_static;
@@ -285,7 +285,7 @@ fn iappend<T>(inum: u32, xp: &mut T, mut n: usize) {
                 din.addr[DIRECT_COUNT] = xint(freeblock.load(Ordering::Relaxed));
                 freeblock.store(din.addr[DIRECT_COUNT] + 1, Ordering::Relaxed);
             }
-            let mut indirect = [0u32; NINDIRECT_COUNT];
+            let mut indirect = [0u32; INDIRECT_COUNT];
             rsect(xint(din.addr[DIRECT_COUNT]), &mut indirect);
             if indirect[fbn - DIRECT_COUNT] == 0 {
                 indirect[fbn - DIRECT_COUNT] = xint(freeblock.load(Ordering::Relaxed));

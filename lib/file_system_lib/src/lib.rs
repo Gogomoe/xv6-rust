@@ -36,8 +36,8 @@ impl SuperBlock {
 }
 
 pub const DIRECT_COUNT: usize = 12;
-pub const NINDIRECT_COUNT: usize = BLOCK_SIZE / size_of::<u32>();
-pub const MAX_FILE_COUNT: usize = DIRECT_COUNT + NINDIRECT_COUNT;
+pub const INDIRECT_COUNT: usize = BLOCK_SIZE / size_of::<u32>();
+pub const MAX_FILE_COUNT: usize = DIRECT_COUNT + INDIRECT_COUNT;
 
 #[repr(C)]
 pub struct INodeDisk {
