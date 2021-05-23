@@ -7,7 +7,7 @@ use core::ptr::null_mut;
 
 use cstr_core::{c_char, CStr, CString};
 
-use file_system_lib::{DIRECTORY_COUNT, DIRECTORY_SIZE, Dirent, FileStatus, iblock, INodeDisk, IPB, MAX_FILE_COUNT, TYPE_DIR};
+use file_system_lib::{DIRECTORY_COUNT, DIRECTORY_INNER_COUNT, DIRECTORY_SIZE, Dirent, FileStatus, iblock, INodeDisk, IPB, MAX_FILE_COUNT, TYPE_DIR};
 use param_lib::MAX_INODE_NUMBER;
 
 use crate::file_system::{Block, BLOCK_CACHE, BLOCK_SIZE, LOG, SUPER_BLOCK};
@@ -99,7 +99,7 @@ impl INode {
         }
         bn -= DIRECTORY_COUNT as u32;
 
-        if (bn as usize) < DIRECTORY_COUNT {
+        if (bn as usize) < DIRECTORY_INNER_COUNT {
             // Load indirect block, allocating if necessary.
             let mut addr = data.addr[DIRECTORY_COUNT];
             if addr == 0 {
