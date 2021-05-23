@@ -376,7 +376,7 @@ impl INode {
         if data.addr[DIRECT_COUNT] != 0 {
             let bp = BLOCK_CACHE.read(data.dev, data.addr[DIRECT_COUNT]);
             let a = unsafe { (bp.data() as *mut [u32; 256] as *mut [u32]).as_ref() }.unwrap();
-            for i in 0..DIRECT_COUNT {
+            for i in 0..INDIRECT_COUNT {
                 if a[i] != 0 {
                     Block::free(data.dev, a[i] as u32);
                 }
