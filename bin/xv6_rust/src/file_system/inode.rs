@@ -7,7 +7,7 @@ use core::ptr::null_mut;
 
 use cstr_core::{c_char, CStr, CString};
 
-use file_system_lib::{DIRECTORY_COUNT, DIRECTORY_INNER_COUNT, DIRECTORY_SIZE, Dirent, FileStatus, iblock, INodeDisk, IPB, MAX_FILE_COUNT, TYPE_DIR};
+use file_system_lib::{DIRECT_COUNT, NINDIRECT_COUNT, DIRECTORY_SIZE, Dirent, FileStatus, iblock, INodeDisk, IPB, MAX_FILE_COUNT, TYPE_DIR};
 use param_lib::MAX_INODE_NUMBER;
 
 use crate::file_system::{Block, BLOCK_CACHE, BLOCK_SIZE, LOG, SUPER_BLOCK};
@@ -27,7 +27,7 @@ pub struct INodeData {
     pub nlink: u16,
 
     pub size: u32,
-    pub addr: [u32; DIRECTORY_COUNT + 1],
+    pub addr: [u32; DIRECT_COUNT + 1],
 }
 
 impl INodeData {
@@ -42,7 +42,7 @@ impl INodeData {
             minor: 0,
             nlink: 0,
             size: 0,
-            addr: [0; DIRECTORY_COUNT + 1],
+            addr: [0; DIRECT_COUNT + 1],
         }
     }
 }
@@ -89,7 +89,7 @@ impl INode {
         let log = unsafe { &mut LOG };
 
         let data = self.data();
-        if (bn as usize) < DIRECTORY_COUNT {
+        if (bn as usize) < DIRECT_COUNT {
             let mut addr = data.addr[bn as usize];
             if addr == 0 {
                 addr = Block::alloc(data.dev);
@@ -97,14 +97,14 @@ impl INode {
             }
             return addr;
         }
-        bn -= DIRECTORY_COUNT as u32;
+        bn -= DIRECT_COUNT as u32;
 
-        if (bn as usize) < DIRECTORY_INNER_COUNT {
+        if (bn as usize) < NINDIRECT_COUNT {
             // Load indirect block, allocating if necessary.
-            let mut addr = data.addr[DIRECTORY_COUNT];
+            let mut addr = data.addr[DIRECT_COUNT];
             if addr == 0 {
                 addr = Block::alloc(data.dev);
-                data.addr[DIRECTORY_COUNT] = addr;
+                data.addr[DIRECT_COUNT] = addr;
             }
 
             let bp = BLOCK_CACHE.read(data.dev, addr);
@@ -366,24 +366,24 @@ impl INode {
     // Caller must hold ip->lock.
     pub fn truncate(&self) {
         let data = self.data();
-        for i in 0..DIRECTORY_COUNT {
+        for i in 0..DIRECT_COUNT {
             if data.addr[i] != 0 {
                 Block::free(data.dev, data.addr[i]);
                 data.addr[i] = 0;
             }
         }
 
-        if data.addr[DIRECTORY_COUNT] != 0 {
-            let bp = BLOCK_CACHE.read(data.dev, data.addr[DIRECTORY_COUNT]);
+        if data.addr[DIRECT_COUNT] != 0 {
+            let bp = BLOCK_CACHE.read(data.dev, data.addr[DIRECT_COUNT]);
             let a = unsafe { (bp.data() as *mut [u32; 256] as *mut [u32]).as_ref() }.unwrap();
-            for i in 0..DIRECTORY_COUNT {
+            for i in 0..DIRECT_COUNT {
                 if a[i] != 0 {
                     Block::free(data.dev, a[i] as u32);
                 }
             }
             BLOCK_CACHE.release(bp);
-            Block::free(data.dev, data.addr[DIRECTORY_COUNT]);
-            data.addr[DIRECTORY_COUNT] = 0;
+            Block::free(data.dev, data.addr[DIRECT_COUNT]);
+            data.addr[DIRECT_COUNT] = 0;
         }
 
         data.size = 0;

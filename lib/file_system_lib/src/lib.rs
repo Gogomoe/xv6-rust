@@ -35,9 +35,9 @@ impl SuperBlock {
     }
 }
 
-pub const DIRECTORY_COUNT: usize = 12;
-pub const DIRECTORY_INNER_COUNT: usize = BLOCK_SIZE / size_of::<u32>();
-pub const MAX_FILE_COUNT: usize = DIRECTORY_COUNT + DIRECTORY_INNER_COUNT;
+pub const DIRECT_COUNT: usize = 12;
+pub const NINDIRECT_COUNT: usize = BLOCK_SIZE / size_of::<u32>();
+pub const MAX_FILE_COUNT: usize = DIRECT_COUNT + NINDIRECT_COUNT;
 
 #[repr(C)]
 pub struct INodeDisk {
@@ -47,7 +47,7 @@ pub struct INodeDisk {
     pub nlink: u16,
 
     pub size: u32,
-    pub addr: [u32; DIRECTORY_COUNT + 1],
+    pub addr: [u32; DIRECT_COUNT + 1],
 }
 
 impl INodeDisk {
@@ -58,7 +58,7 @@ impl INodeDisk {
             minor: 0,
             nlink: 0,
             size: 0,
-            addr: [0; DIRECTORY_COUNT + 1],
+            addr: [0; DIRECT_COUNT + 1],
         }
     }
 }

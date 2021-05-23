@@ -2,7 +2,7 @@ extern crate file_system_lib;
 extern crate param_lib;
 
 use file_system_lib::{
-    iblock, Dirent, INodeDisk, SuperBlock, BLOCK_SIZE, DIRECTORY_COUNT, DIRECTORY_INNER_COUNT,
+    iblock, Dirent, INodeDisk, SuperBlock, BLOCK_SIZE, DIRECT_COUNT, NINDIRECT_COUNT,
     DIRECTORY_SIZE, FSMAGIC, IPB, MAX_FILE_COUNT, ROOT_INO, TYPE_DIR, TYPE_FILE,
 };
 use lazy_static::lazy_static;
@@ -274,25 +274,25 @@ fn iappend<T>(inum: u32, xp: &mut T, mut n: usize) {
         let x;
         let fbn = off / BLOCK_SIZE;
         assert_eq!(true, fbn < MAX_FILE_COUNT);
-        if fbn < DIRECTORY_COUNT {
+        if fbn < DIRECT_COUNT {
             if xint(din.addr[fbn]) == 0 {
                 din.addr[fbn] = xint(freeblock.load(Ordering::Relaxed));
                 freeblock.store(din.addr[fbn] + 1, Ordering::Relaxed);
             }
             x = xint(din.addr[fbn]);
         } else {
-            if xint(din.addr[DIRECTORY_COUNT]) == 0 {
-                din.addr[DIRECTORY_COUNT] = xint(freeblock.load(Ordering::Relaxed));
-                freeblock.store(din.addr[DIRECTORY_COUNT] + 1, Ordering::Relaxed);
+            if xint(din.addr[DIRECT_COUNT]) == 0 {
+                din.addr[DIRECT_COUNT] = xint(freeblock.load(Ordering::Relaxed));
+                freeblock.store(din.addr[DIRECT_COUNT] + 1, Ordering::Relaxed);
             }
-            let mut indirect = [0u32; DIRECTORY_INNER_COUNT];
-            rsect(xint(din.addr[DIRECTORY_COUNT]), &mut indirect);
-            if indirect[fbn - DIRECTORY_COUNT] == 0 {
-                indirect[fbn - DIRECTORY_COUNT] = xint(freeblock.load(Ordering::Relaxed));
-                freeblock.store(indirect[fbn - DIRECTORY_COUNT] + 1, Ordering::Relaxed);
-                wsect(xint(din.addr[DIRECTORY_COUNT]), &indirect);
+            let mut indirect = [0u32; NINDIRECT_COUNT];
+            rsect(xint(din.addr[DIRECT_COUNT]), &mut indirect);
+            if indirect[fbn - DIRECT_COUNT] == 0 {
+                indirect[fbn - DIRECT_COUNT] = xint(freeblock.load(Ordering::Relaxed));
+                freeblock.store(indirect[fbn - DIRECT_COUNT] + 1, Ordering::Relaxed);
+                wsect(xint(din.addr[DIRECT_COUNT]), &indirect);
             }
-            x = xint(indirect[fbn - DIRECTORY_COUNT]);
+            x = xint(indirect[fbn - DIRECT_COUNT]);
         }
         let n1 = n.min((fbn + 1) * BLOCK_SIZE - off);
         rsect(x, &mut buf);
