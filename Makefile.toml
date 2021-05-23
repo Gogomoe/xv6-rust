@@ -28,7 +28,15 @@ script = [
 
 [tasks.build_all]
 run_task = [
-    { name = ["build_xv6_rust", "build_mkfs", "build_user"] }
+    { name = ["build_xv6_rust", "fs_img", "build_user"] }
+]
+
+[tasks.fs_img]
+dependencies = ["build_mkfs"]
+script = [
+    """
+    ./target/debug/mkfs fs.img
+    """
 ]
 
 [tasks.run]
