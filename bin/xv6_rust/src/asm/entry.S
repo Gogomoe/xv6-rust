@@ -1,8 +1,7 @@
-    # qemu -kernel starts at 0x1000. the instructions
-    # there seem to be provided by qemu, as if it
-    # were a ROM. the code at 0x1000 jumps to
-    # 0x80000000, the _entry function here,
-    # in machine mode. each CPU starts here.
+    # qemu -kernel loads the kernel at 0x80000000
+    # and causes each CPU to jump there.
+    # kernel.ld causes the following code to
+    # be placed at 0x80000000.
     .section .text
     .globl _entry
 _entry:
