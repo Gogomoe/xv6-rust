@@ -204,7 +204,7 @@ impl ProcessManager {
                 // An empty user page table.
                 data.page_table = user_virtual_memory::alloc_page_table(data.trap_frame);
                 if data.page_table.is_none() {
-                    self.free_precess(process);
+                    self.free_process(process);
                     drop(guard);
                     return None;
                 }
@@ -235,7 +235,7 @@ impl ProcessManager {
     // free a proc structure and the data hanging from it,
     // including user pages.
     // p->lock must be held.
-    pub fn free_precess(&self, process: &Process) {
+    pub fn free_process(&self, process: &Process) {
         let data = process.data();
         let info = process.info();
 
@@ -304,7 +304,7 @@ impl ProcessManager {
             process.data().size,
         );
         if !copy_result {
-            self.free_precess(new_process);
+            self.free_process(new_process);
             drop(guard);
             return None;
         }
@@ -364,7 +364,7 @@ impl ProcessManager {
                     // Found one.
                     let pid = np.info().pid;
                     let exit_state = np.info().exit_state;
-                    self.free_precess(np);
+                    self.free_process(np);
                     drop(kid_guard);
                     drop(guard);
                     return Some((pid, exit_state));
