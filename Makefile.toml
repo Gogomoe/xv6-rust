@@ -2,63 +2,52 @@
 default_to_workspace = false
 
 [tasks.build_xv6_rust]
-script = [
-    """
+script = """
     cargo rustc --package xv6_rust --bin xv6_rust --target riscv64gc-unknown-none-elf \
     -- -C link-arg=-Tbin/xv6_rust/src/ld/kernel.ld -O
-    """,
-    """
+
     riscv64-unknown-elf-objdump -S target/riscv64gc-unknown-none-elf/debug/xv6_rust > kernel.S
-    """
-]
+"""
 
 [tasks.build_mkfs]
-script = [
-    """
+script = """
     cargo build --package mkfs
-    """
-]
+"""
 
 [tasks.build_user]
-script = [
-    """
-    cargo rustc --package user --bin init --target riscv64gc-unknown-none-elf
-    """
-]
+script = """
+    perl bin/user/src/usys.pl > bin/user/src/usys.S
+
+    cargo rustc --package user --bins --target riscv64gc-unknown-none-elf --release
+"""
 
 [tasks.build_all]
 run_task = [
-    { name = ["build_xv6_rust", "fs_img", "build_user"] }
+    { name = ["build_xv6_rust", "build_user", "fs_img"] }
 ]
 
 [tasks.fs_img]
 dependencies = ["build_mkfs"]
-script = [
-    """
-    ./target/debug/mkfs fs.img
-    """
-]
+script = """
+    ./target/debug/mkfs fs.img user/init user/_sh user/_ls
+"""
 
 [tasks.run]
 dependencies = ["build_xv6_rust"]
-script = [
-    """
+script = """
     qemu-system-riscv64 \
     -machine virt -bios none \
     -m 128M -smp 3 -nographic \
     -drive file=fs.img,if=none,format=raw,id=x0 \
     -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
     -kernel target/riscv64gc-unknown-none-elf/debug/xv6_rust
-    """
-]
+"""
 
 [tasks.debug]
 dependencies = ["build_xv6_rust"]
-script = [
-    """
+script = """
     echo "*** Now run 'gdb' in another window."
-    """,
-    """
+
     qemu-system-riscv64 \
     -machine virt -bios none \
     -m 128M -smp 3 -nographic \
@@ -66,5 +55,4 @@ script = [
     -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0 \
     -kernel target/riscv64gc-unknown-none-elf/debug/xv6_rust \
     -S -gdb tcp::26000
-    """
-]
+"""
