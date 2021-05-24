@@ -5,7 +5,7 @@ default_to_workspace = false
 script = [
     """
     cargo rustc --package xv6_rust --bin xv6_rust --target riscv64gc-unknown-none-elf \
-    -- -C link-arg=-Tbin/xv6_rust/src/ld/kernel.ld
+    -- -C link-arg=-Tbin/xv6_rust/src/ld/kernel.ld -O
     """,
     """
     riscv64-unknown-elf-objdump -S target/riscv64gc-unknown-none-elf/debug/xv6_rust > kernel.S

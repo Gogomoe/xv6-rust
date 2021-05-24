@@ -42,7 +42,7 @@ pub unsafe fn start() -> ! {
 }
 
 // scratch area for timer interrupt, one per CPU.
-static mut MSCRATCH0: [usize; MAX_CPU_NUMBER * 32] = [0; MAX_CPU_NUMBER * 32];
+static mut MSCRATCH0: [usize; MAX_CPU_NUMBER * 5] = [0; MAX_CPU_NUMBER * 5];
 
 // set up to receive timer interrupts in machine mode,
 // which arrive at timervec in kernelvec.S,
@@ -67,9 +67,9 @@ pub unsafe fn timer_init() {
     // scratch[0..3] : space for timervec to save registers.
     // scratch[4] : address of CLINT MTIMECMP register.
     // scratch[5] : desired interval (in cycles) between timer interrupts.
-    let scratch: *mut usize = &mut MSCRATCH0[32 * id] as *mut usize;
-    *scratch.offset(4) = clint_mtimecmp;
-    *scratch.offset(5) = interval;
+    let scratch: *mut usize = &mut MSCRATCH0[5 * id] as *mut usize;
+    *scratch.offset(3) = clint_mtimecmp;
+    *scratch.offset(4) = interval;
     write_mscratch(scratch as usize);
 
     // set the machine-mode trap handler.
