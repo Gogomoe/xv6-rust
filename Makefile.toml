@@ -4,33 +4,31 @@ default_to_workspace = false
 [tasks.build_xv6_rust]
 script = """
     cargo rustc --package xv6_rust --bin xv6_rust --target riscv64gc-unknown-none-elf \
-    -- -C link-arg=-Tbin/xv6_rust/src/ld/kernel.ld -O
+    -- -C link-arg=-Tbin/xv6_rust/src/ld/kernel.ld -C opt-level=1
 
     riscv64-unknown-elf-objdump -S target/riscv64gc-unknown-none-elf/debug/xv6_rust > kernel.S
-"""
-
-[tasks.build_mkfs]
-script = """
-    cargo build --package mkfs
 """
 
 [tasks.build_user]
 script = """
     perl bin/user/src/usys.pl > bin/user/src/usys.S
 
-    cargo rustc --package user --bins --target riscv64gc-unknown-none-elf --release
+    cargo rustc --package user --bins --target riscv64gc-unknown-none-elf -- -C opt-level=1
+"""
+
+[tasks.build_mkfs]
+script = "cargo build --package mkfs"
+
+[tasks.build_img]
+dependencies = ["build_mkfs"]
+script = """
+    target/debug/mkfs fs.img init sh ls
 """
 
 [tasks.build_all]
 run_task = [
-    { name = ["build_xv6_rust", "build_user", "fs_img"] }
+    { name = ["build_xv6_rust", "build_user", "build_img"] }
 ]
-
-[tasks.fs_img]
-dependencies = ["build_mkfs"]
-script = """
-    ./target/debug/mkfs fs.img user/init user/_sh user/_ls
-"""
 
 [tasks.run]
 dependencies = ["build_xv6_rust"]

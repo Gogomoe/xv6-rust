@@ -141,25 +141,16 @@ fn main() {
     iappend(rootino, &mut de, mem::size_of::<Dirent>());
 
     for i in 2..args.len() {
-        let mut shortname = if args[i].starts_with("user/") {
-            args[i].split_at(5).1
-        } else {
-            &args[i]
-        };
-        assert_eq!(None, shortname.find('/'));
-
-        if let Ok(mut fd) = File::open(&args[i]) {
-            if shortname.starts_with('_') {
-                shortname = shortname.split_at(1).1;
-            }
-
+        let mut filename = String::from("target/riscv64gc-unknown-none-elf/debug/");
+        filename.push_str(&args[i]);
+        if let Ok(mut fd) = File::open(filename) {
             let inum = ialloc(TYPE_FILE);
 
             de = Dirent {
                 inum: xshort(inum as u16),
                 name: {
                     let mut name = [0u8; DIRECTORY_SIZE];
-                    let tmp = CString::new(shortname).unwrap();
+                    let tmp = CString::new(&args[i] as &str).unwrap();
                     let ttmp = tmp.as_bytes_with_nul();
                     let (left, _) = name.split_at_mut(ttmp.len());
                     left.clone_from_slice(&ttmp);

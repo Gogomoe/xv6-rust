@@ -1,16 +1,20 @@
-use core::fmt;
-use crate::syscall::write;
+use core::convert::Infallible;
+use ufmt::uWrite;
+pub use ufmt::uwriteln;
+use crate::write;
 
-struct UserPrinter {}
+pub struct UserPrinter;
 
 impl UserPrinter {
     fn print(&self, c: u8) {
-        write(0, &c, 1);
+        unsafe { write(0, &c, 1); }
     }
 }
 
-impl fmt::Write for UserPrinter {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
+impl uWrite for UserPrinter {
+	type Error = Infallible;
+
+    fn write_str(&mut self, s: &str) -> Result<(), Self::Error> {
         for byte in s.bytes() {
             self.print(byte);
         }
@@ -18,29 +22,22 @@ impl fmt::Write for UserPrinter {
     }
 }
 
-static mut PRINTER: UserPrinter = UserPrinter {};
-
-pub fn _print(args: fmt::Arguments<'_>) {
-    use core::fmt::Write;
-    unsafe { &mut PRINTER }.write_fmt(args).expect("_print: error");
-}
-
 #[macro_export]
 macro_rules! print {
-	($($args:tt)+) => ({
-		$crate::print::_print(format_args!($($args)+));
+	($fmt:expr, $($args:tt),*) => ({
+		uwriteln!(&mut UserPrinter, $fmt, $($args)*).ok();
 	});
 }
 
 #[macro_export]
 macro_rules! println {
 	() => ({
-		print!("\n")
+		print!()
 	});
 	($fmt:expr) => ({
-		print!(concat!($fmt, "\n"))
+		print!($fmt, )
 	});
 	($fmt:expr, $($args:tt)+) => ({
-		print!(concat!($fmt, "\n"), $($args)+)
+		print!($fmt, $($args)+)
 	});
 }

@@ -387,7 +387,9 @@ impl ProcessManager {
     pub fn exit(&self, exit_state: i32) {
         let process = CPU_MANAGER.my_proc();
 
-        assert_ne!(process as *const _, self.init_process() as *const _);
+        if process as *const _ == self.init_process() as *const _ {
+            panic!("init exiting");
+        }
 
         // close all open files
         for fd in 0..MAX_OPEN_FILE_NUMBER {

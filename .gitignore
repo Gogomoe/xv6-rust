@@ -3,3 +3,4 @@
 .idea
 fs.img
 kernel.S
+bin/user/src/usys.S
