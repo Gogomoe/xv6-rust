@@ -401,8 +401,9 @@ pub unsafe fn nulterminate(cmd: &cmd) ->&cmd{
         EXEC =>{
             let mut ecmd: execcmd=unsafe{*cmd.ptr};
             for i in 0..MAXARGS{
-                if ecmd.argv[i]!=""
+                if ecmd.argv[i]!=""{
                     *ecmd.eargv[i]=0;
+                }
             }
         },
         REDIR =>{
