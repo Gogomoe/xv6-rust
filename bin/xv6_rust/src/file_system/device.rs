@@ -15,5 +15,3 @@ impl Device {
 }
 
 pub static mut DEVICES: [Device; MAX_DEV_NUMBER] = array![_ => Device::new(); MAX_DEV_NUMBER];
-
-pub const CONSOLE_ID: usize = 1;

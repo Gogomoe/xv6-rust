@@ -7,7 +7,6 @@
 #![feature(fn_traits)]
 #![feature(const_fn_fn_ptr_basics)]
 
-#[macro_use]
 extern crate alloc;
 #[macro_use]
 extern crate array_macro;
@@ -15,6 +14,7 @@ extern crate array_macro;
 extern crate bitflags;
 extern crate cstr_core;
 extern crate file_system_lib;
+extern crate file_control_lib;
 extern crate linked_list_allocator;
 extern crate param_lib;
 

@@ -7,3 +7,5 @@ edition = "2018"
 
 [dependencies]
 ufmt = "0.1.0"
+
+file_control_lib = { path = "../../lib/file_control_lib" }

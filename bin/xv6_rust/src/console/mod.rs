@@ -1,8 +1,9 @@
 use crate::console::uart::{uart_init, uart_put_char, uart_put_char_sync};
-use crate::file_system::device::{CONSOLE_ID, DEVICES};
+use crate::file_system::device::DEVICES;
 use crate::memory::{either_copy_in, either_copy_out};
 use crate::process::{CPU_MANAGER, PROCESS_MANAGER};
 use crate::spin_lock::SpinLock;
+use crate::file_control_lib::CONSOLE_ID;
 
 pub mod uart;
 

@@ -11,9 +11,8 @@ script = """
 
 [tasks.build_user]
 script = """
-    perl bin/user/src/usys.pl > bin/user/src/usys.S
-
-    cargo rustc --package user --bins --target riscv64gc-unknown-none-elf -- -C opt-level=1
+    cargo rustc --package user --bins --target riscv64gc-unknown-none-elf \
+    -- -C opt-level=1 -C link-arg=-Tbin/user/src/ld/user.ld -C link-arg=-N
 """
 
 [tasks.build_mkfs]

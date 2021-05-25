@@ -1,13 +1,12 @@
 use core::convert::Infallible;
 use ufmt::uWrite;
-pub use ufmt::uwriteln;
 use crate::write;
 
 pub struct UserPrinter;
 
 impl UserPrinter {
-    fn print(&self, c: u8) {
-        unsafe { write(0, &c, 1); }
+    fn print(&self, fd: usize, c: u8) {
+        write(fd, &c, 1);
     }
 }
 
@@ -16,7 +15,7 @@ impl uWrite for UserPrinter {
 
     fn write_str(&mut self, s: &str) -> Result<(), Self::Error> {
         for byte in s.bytes() {
-            self.print(byte);
+            self.print(1, byte);
         }
         Ok(())
     }
@@ -25,6 +24,8 @@ impl uWrite for UserPrinter {
 #[macro_export]
 macro_rules! print {
 	($fmt:expr, $($args:tt),*) => ({
+		use ufmt::uwriteln;
+		use print::UserPrinter;
 		uwriteln!(&mut UserPrinter, $fmt, $($args)*).ok();
 	});
 }

@@ -268,19 +268,19 @@ fn iappend<T>(inum: u32, xp: &mut T, mut n: usize) {
         if fbn < DIRECT_COUNT {
             if xint(din.addr[fbn]) == 0 {
                 din.addr[fbn] = xint(freeblock.load(Ordering::Relaxed));
-                freeblock.store(din.addr[fbn] + 1, Ordering::Relaxed);
+                freeblock.store(freeblock.load(Ordering::Relaxed) + 1, Ordering::Relaxed);
             }
             x = xint(din.addr[fbn]);
         } else {
             if xint(din.addr[DIRECT_COUNT]) == 0 {
                 din.addr[DIRECT_COUNT] = xint(freeblock.load(Ordering::Relaxed));
-                freeblock.store(din.addr[DIRECT_COUNT] + 1, Ordering::Relaxed);
+                freeblock.store(freeblock.load(Ordering::Relaxed) + 1, Ordering::Relaxed);
             }
             let mut indirect = [0u32; INDIRECT_COUNT];
             rsect(xint(din.addr[DIRECT_COUNT]), &mut indirect);
             if indirect[fbn - DIRECT_COUNT] == 0 {
                 indirect[fbn - DIRECT_COUNT] = xint(freeblock.load(Ordering::Relaxed));
-                freeblock.store(indirect[fbn - DIRECT_COUNT] + 1, Ordering::Relaxed);
+                freeblock.store(freeblock.load(Ordering::Relaxed) + 1, Ordering::Relaxed);
                 wsect(xint(din.addr[DIRECT_COUNT]), &indirect);
             }
             x = xint(indirect[fbn - DIRECT_COUNT]);
@@ -289,9 +289,9 @@ fn iappend<T>(inum: u32, xp: &mut T, mut n: usize) {
         rsect(x, &mut buf);
         unsafe {
             ptr::copy(
-                p,
-                (buf.as_mut_ptr() as usize + off - (fbn * BLOCK_SIZE)) as *mut T,
-                1,
+                p as *const u8,
+                (buf.as_mut_ptr() as usize + off - (fbn * BLOCK_SIZE)) as *mut T as *mut u8,
+                n1,
             );
         }
         wsect(x, &buf);

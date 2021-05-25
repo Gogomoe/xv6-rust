@@ -1,16 +1,13 @@
 #![no_std]
 #![feature(global_asm)]
 #![feature(llvm_asm)]
+#![feature(alloc_error_handler)]
 
 extern crate ufmt;
-
-global_asm!(include_str!("usys.S"));
+extern crate file_control_lib;
 
 #[macro_use]
 pub mod print;
 
-pub use print::*;
-
-extern {
-    pub fn write(_fd: usize, _str: *const u8, _size: usize) -> isize;
-}
+pub mod syscall;
+pub use syscall::*;
