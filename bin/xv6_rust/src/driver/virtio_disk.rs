@@ -11,9 +11,9 @@ use crate::memory::layout::VIRTIO0;
 use crate::memory::PAGE_SIZE;
 use crate::process::{CPU_MANAGER, PROCESS_MANAGER};
 use crate::spin_lock::SpinLock;
+use file_system_lib::BLOCK_SIZE;
 
 const NUM: usize = 8;
-const BLOCK_SIZE: usize = 1024;
 
 #[repr(C)]
 struct VRingDesc {

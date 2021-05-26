@@ -9,19 +9,27 @@ script = """
     riscv64-unknown-elf-objdump -S target/riscv64gc-unknown-none-elf/debug/xv6_rust > kernel.S
 """
 
+[env]
+USER_PROGRAM = "init ls"
+
 [tasks.build_user]
 script = """
-    cargo rustc --package user --bins --target riscv64gc-unknown-none-elf \
-    -- -C opt-level=1 -C link-arg=-Tbin/user/src/ld/user.ld -C link-arg=-N
+    for i in ${USER_PROGRAM}
+    do
+        cargo rustc --package user --target riscv64gc-unknown-none-elf --bin ${i} -- -C opt-level=1 -C link-arg=-Tbin/user/src/ld/user.ld -C link-arg=-N
+        riscv64-unknown-elf-strip target/riscv64gc-unknown-none-elf/debug/${i}
+    done
 """
 
 [tasks.build_mkfs]
-script = "cargo build --package mkfs"
+command = "cargo"
+args = ["build", "--package", "mkfs"]
 
 [tasks.build_img]
 dependencies = ["build_mkfs"]
 script = """
-    target/debug/mkfs fs.img init sh ls
+    cp user/sh target/riscv64gc-unknown-none-elf/debug/
+    target/debug/mkfs fs.img ${USER_PROGRAM} sh
 """
 
 [tasks.build_all]
@@ -30,7 +38,7 @@ run_task = [
 ]
 
 [tasks.run]
-dependencies = ["build_xv6_rust"]
+dependencies = ["build_all"]
 script = """
     qemu-system-riscv64 \
     -machine virt -bios none \
@@ -41,7 +49,7 @@ script = """
 """
 
 [tasks.debug]
-dependencies = ["build_xv6_rust"]
+dependencies = ["build_all"]
 script = """
     echo "*** Now run 'gdb' in another window."
 

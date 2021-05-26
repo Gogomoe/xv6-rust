@@ -5,6 +5,7 @@
 
 extern crate ufmt;
 extern crate file_control_lib;
+extern crate file_system_lib;
 
 #[macro_use]
 pub mod print;
