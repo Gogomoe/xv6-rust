@@ -8,7 +8,7 @@ use user::*;
 const exec_argv: [*const u8; 2] = ["sh".as_ptr(), 0 as *const u8];
 
 #[no_mangle]
-pub fn main(args: Vec<&str>) {
+pub fn main(_args: Vec<&str>) {
     let ptr = "console";
     if open(ptr, OPEN_READ_WRITE) < 0 {
         mknod(ptr, CONSOLE_ID, 0);

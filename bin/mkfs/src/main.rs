@@ -39,7 +39,7 @@ static freeinode: AtomicU32 = AtomicU32::new(1);
 static freeblock: AtomicU32 = AtomicU32::new(nmeta);
 
 lazy_static! {
-    static ref sb: Mutex<SuperBlock> = Mutex::new(SuperBlock {
+    static ref SUPERBLOCK: Mutex<SuperBlock> = Mutex::new(SuperBlock {
         magic: FSMAGIC,
         size: xint(FILE_SYSTEM_SIZE),
         blocks_number: xint(nblocks),
@@ -49,14 +49,14 @@ lazy_static! {
         inode_start: xint(2 + nlog),
         block_map_start: xint(2 + nlog + ninodeblocks)
     });
-    static ref args: Vec<String> = {
+    static ref ARGS: Vec<String> = {
         if env::args().len() < 2 {
             eprintln!("Usage: mkfs fs.img files...");
             process::exit(1);
         }
         env::args().collect()
     };
-    static ref fsfd: Mutex<File> = {
+    static ref FSFD: Mutex<File> = {
         assert_eq!(0, BLOCK_SIZE % mem::size_of::<INodeDisk>());
         assert_eq!(0, BLOCK_SIZE % mem::size_of::<Dirent>());
         Mutex::new(
@@ -65,8 +65,8 @@ lazy_static! {
                 .write(true)
                 .create(true)
                 .truncate(true)
-                .open(&args[1])
-                .expect(&args[1]),
+                .open(&ARGS[1])
+                .expect(&ARGS[1]),
         )
     };
 }
@@ -104,7 +104,7 @@ fn main() {
     let mut buf = [0u8; BLOCK_SIZE];
     unsafe {
         ptr::copy(
-            &*sb.lock().unwrap() as *const SuperBlock,
+            &*SUPERBLOCK.lock().unwrap() as *const SuperBlock,
             buf.as_mut_ptr() as *mut SuperBlock,
             1,
         );
@@ -140,9 +140,9 @@ fn main() {
     };
     iappend(rootino, &mut de, mem::size_of::<Dirent>());
 
-    for i in 2..args.len() {
+    for i in 2..ARGS.len() {
         let mut filename = String::from("target/riscv64gc-unknown-none-elf/debug/");
-        filename.push_str(&args[i]);
+        filename.push_str(&ARGS[i]);
         if let Ok(mut fd) = File::open(filename) {
             let inum = ialloc(TYPE_FILE);
 
@@ -150,7 +150,7 @@ fn main() {
                 inum: xshort(inum as u16),
                 name: {
                     let mut name = [0u8; DIRECTORY_SIZE];
-                    let tmp = CString::new(&args[i] as &str).unwrap();
+                    let tmp = CString::new(&ARGS[i] as &str).unwrap();
                     let ttmp = tmp.as_bytes_with_nul();
                     let (left, _) = name.split_at_mut(ttmp.len());
                     left.clone_from_slice(&ttmp);
@@ -166,7 +166,7 @@ fn main() {
                 iappend(inum, &mut buf, i);
             }
         } else {
-            eprintln!("{}", args[i]);
+            eprintln!("{}", ARGS[i]);
             process::exit(1);
         }
     }
@@ -184,7 +184,7 @@ fn main() {
 }
 
 fn wsect<T>(sec: u32, buf: &[T]) {
-    let mut fd = fsfd.lock().unwrap();
+    let mut fd = FSFD.lock().unwrap();
     fd.seek(SeekFrom::Start(sec as u64 * BLOCK_SIZE as u64))
         .expect("lseek");
     fd.write(unsafe {
@@ -198,7 +198,7 @@ fn wsect<T>(sec: u32, buf: &[T]) {
 
 fn winode(inum: u32, ip: &INodeDisk) {
     let mut buf = [0u8; BLOCK_SIZE];
-    let bn = iblock(inum, &*sb.lock().unwrap());
+    let bn = iblock(inum, &*SUPERBLOCK.lock().unwrap());
     rsect(bn, &mut buf);
     unsafe {
         let dip = (buf.as_mut_ptr() as *mut INodeDisk).add((inum % IPB) as usize);
@@ -209,7 +209,7 @@ fn winode(inum: u32, ip: &INodeDisk) {
 
 fn rinode(inum: u32, ip: &mut INodeDisk) {
     let mut buf = [0u8; BLOCK_SIZE];
-    let bn = iblock(inum, &*sb.lock().unwrap());
+    let bn = iblock(inum, &*SUPERBLOCK.lock().unwrap());
     rsect(bn, &mut buf);
     unsafe {
         let dip = (buf.as_ptr() as *const INodeDisk).add((inum % IPB) as usize);
@@ -218,7 +218,7 @@ fn rinode(inum: u32, ip: &mut INodeDisk) {
 }
 
 fn rsect<T>(sec: u32, buf: &mut [T]) {
-    let mut fd = fsfd.lock().unwrap();
+    let mut fd = FSFD.lock().unwrap();
     fd.seek(SeekFrom::Start(sec as u64 * BLOCK_SIZE as u64))
         .expect("lseek");
     fd.read(unsafe {
@@ -248,9 +248,9 @@ fn balloc(used: usize) {
     }
     println!(
         "balloc: write bitmap block at sector {}",
-        sb.lock().unwrap().block_map_start
+        SUPERBLOCK.lock().unwrap().block_map_start
     );
-    wsect(sb.lock().unwrap().block_map_start, &buf);
+    wsect(SUPERBLOCK.lock().unwrap().block_map_start, &buf);
 }
 
 fn iappend<T>(inum: u32, xp: &mut T, mut n: usize) {

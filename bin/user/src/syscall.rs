@@ -33,7 +33,7 @@ pub fn wait(_addr: *const usize) -> isize {
     }
 }
 
-pub fn read(_fd: usize, _addr: usize, _size: usize) -> isize {
+pub fn read(_fd: usize, _addr: *mut u8, _size: usize) -> isize {
     unsafe {
         let mut x: isize;
         llvm_asm!("li a7, 5"::::"volatile");

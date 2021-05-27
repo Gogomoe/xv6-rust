@@ -69,7 +69,7 @@ fn ls(path: &str) {
                     p = p.add(1);
                 }
 
-                while read(fd, &mut de as *mut _ as usize, size_of::<Dirent>())
+                while read(fd, &mut de as *mut _ as *mut u8, size_of::<Dirent>())
                     == size_of::<Dirent>() as isize
                 {
                     if de.inum != 0 {
@@ -97,11 +97,11 @@ fn ls(path: &str) {
 }
 
 #[no_mangle]
-pub fn main(args: Vec<&str>) {
-    if args.len() == 0 {
+pub fn main(_args: Vec<&str>) {
+    if _args.len() == 0 {
         ls(".");
     } else {
-        for i in args {
+        for i in _args {
             ls(i);
         }
     }

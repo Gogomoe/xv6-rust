@@ -1,13 +1,10 @@
-#![no_std]
-#![no_main]
-
 use crate::*;
 use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 use core::str::from_utf8_unchecked;
 
 extern "Rust" {
-    fn main(args: Vec<&str>);
+    fn main(_args: Vec<&str>);
 }
 
 #[no_mangle]
