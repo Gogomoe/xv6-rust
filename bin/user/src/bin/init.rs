@@ -2,15 +2,15 @@
 #![no_main]
 
 use core::panic::PanicInfo;
-use file_control_lib::{OPEN_READ_WRITE, CONSOLE_ID};
+use file_control_lib::CONSOLE_ID;
 use user::*;
 
 #[allow(non_upper_case_globals)]
-const argv: [*const u8; 2] = ["sh\0".as_ptr(), 0 as *const u8];
+const argv: [*const u8; 2] = ["sh".as_ptr(), 0 as *const u8];
 
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
-    let ptr = "console\0".as_ptr();
+    let ptr = "console";
     if open(ptr, OPEN_READ_WRITE) < 0 {
         mknod(ptr, CONSOLE_ID, 0);
         open(ptr, OPEN_READ_WRITE);
@@ -26,7 +26,7 @@ pub extern "C" fn _start() -> ! {
             exit(1);
         }
         if pid == 0 {
-            exec("sh\0".as_ptr(), &argv as *const _ as usize);
+            exec("sh", &argv as *const _ as usize);
             println!("init: exec sh failed");
             exit(1);
         }

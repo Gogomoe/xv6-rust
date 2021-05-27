@@ -90,6 +90,15 @@ pub struct Dirent {
     pub name: [u8; DIRECTORY_SIZE],
 }
 
+impl Dirent {
+    pub const fn new() -> Dirent {
+        Dirent {
+            inum: 0,
+            name: [0; DIRECTORY_SIZE],
+        }
+    }
+}
+
 pub const TYPE_DIR: u16 = 1;
 pub const TYPE_FILE: u16 = 2;
 pub const TYPE_DEVICE: u16 = 3;
@@ -101,4 +110,16 @@ pub struct FileStatus {
     pub types: u16,
     pub nlink: u16,
     pub size: u64,
+}
+
+impl FileStatus {
+    pub const fn new() -> FileStatus {
+        FileStatus {
+            dev: 0,
+            ino: 0,
+            types: 0,
+            nlink: 0,
+            size: 0,
+        }
+    }
 }

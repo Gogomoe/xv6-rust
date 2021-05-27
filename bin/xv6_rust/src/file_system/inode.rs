@@ -143,7 +143,7 @@ impl INode {
             let m = min(n - tot, BLOCK_SIZE as u32 - (off % BLOCK_SIZE as u32));
             if !either_copy_out(user_dst, dst, bp.data() as usize + (off as usize % BLOCK_SIZE), m as usize) {
                 BLOCK_CACHE.release(bp);
-                tot = 0;
+                tot = u32::MAX;
                 break;
             }
             BLOCK_CACHE.release(bp);
