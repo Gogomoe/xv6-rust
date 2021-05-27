@@ -33,10 +33,30 @@ pub fn wait(_addr: *const usize) -> isize {
     }
 }
 
+pub fn pipe(_fdarray: *mut [usize; 2]) -> isize {
+    unsafe {
+        let mut x: isize;
+        llvm_asm!("li a7, 6"::::"volatile");
+        llvm_asm!("ecall"::::"volatile");
+        llvm_asm!("mv $0, a0":"=r"(x):::"volatile");
+        return x;
+    }
+}
+
 pub fn read(_fd: usize, _addr: *mut u8, _size: usize) -> isize {
     unsafe {
         let mut x: isize;
         llvm_asm!("li a7, 5"::::"volatile");
+        llvm_asm!("ecall"::::"volatile");
+        llvm_asm!("mv $0, a0":"=r"(x):::"volatile");
+        return x;
+    }
+}
+
+pub fn kill(_pid: usize) -> isize {
+    unsafe {
+        let mut x: isize;
+        llvm_asm!("li a7, 6"::::"volatile");
         llvm_asm!("ecall"::::"volatile");
         llvm_asm!("mv $0, a0":"=r"(x):::"volatile");
         return x;
@@ -69,6 +89,16 @@ pub fn fstat(_fd: usize, _addr: *mut FileStatus) -> isize {
     }
 }
 
+pub fn chdir(_path: *const u8) -> isize {
+    unsafe {
+        let mut x: isize;
+        llvm_asm!("li a7, 9"::::"volatile");
+        llvm_asm!("ecall"::::"volatile");
+        llvm_asm!("mv $0, a0":"=r"(x):::"volatile");
+        return x;
+    }
+}
+
 pub fn dup(_fd: usize) -> isize {
     unsafe {
         let mut x: isize;
@@ -79,10 +109,40 @@ pub fn dup(_fd: usize) -> isize {
     }
 }
 
+pub fn getpid() -> isize {
+    unsafe {
+        let mut x: isize;
+        llvm_asm!("li a7, 11"::::"volatile");
+        llvm_asm!("ecall"::::"volatile");
+        llvm_asm!("mv $0, a0":"=r"(x):::"volatile");
+        return x;
+    }
+}
+
 pub fn sbrk(_size: usize) -> *mut u8 {
     unsafe {
         let mut x: *mut u8;
         llvm_asm!("li a7, 12"::::"volatile");
+        llvm_asm!("ecall"::::"volatile");
+        llvm_asm!("mv $0, a0":"=r"(x):::"volatile");
+        return x;
+    }
+}
+
+pub fn sleep(_ticks: usize) -> isize {
+    unsafe {
+        let mut x: isize;
+        llvm_asm!("li a7, 13"::::"volatile");
+        llvm_asm!("ecall"::::"volatile");
+        llvm_asm!("mv $0, a0":"=r"(x):::"volatile");
+        return x;
+    }
+}
+
+pub fn uptime() -> isize {
+    unsafe {
+        let mut x: isize;
+        llvm_asm!("li a7, 14"::::"volatile");
         llvm_asm!("ecall"::::"volatile");
         llvm_asm!("mv $0, a0":"=r"(x):::"volatile");
         return x;
@@ -129,6 +189,36 @@ fn _mknod(_path: *const u8, _major: usize, _minor: usize) -> isize {
 pub fn mknod(_path: &str, _major: usize, _minor: usize) -> isize {
     let _path = CString::new(_path).expect("open syscall: CString::new failed");
     _mknod(_path.as_ptr(), _major, _minor)
+}
+
+pub fn unlink(_path: *const u8) -> isize {
+    unsafe {
+        let mut x: isize;
+        llvm_asm!("li a7, 18"::::"volatile");
+        llvm_asm!("ecall"::::"volatile");
+        llvm_asm!("mv $0, a0":"=r"(x):::"volatile");
+        return x;
+    }
+}
+
+pub fn link(_old: *const u8, _new: *const u8) -> isize {
+    unsafe {
+        let mut x: isize;
+        llvm_asm!("li a7, 19"::::"volatile");
+        llvm_asm!("ecall"::::"volatile");
+        llvm_asm!("mv $0, a0":"=r"(x):::"volatile");
+        return x;
+    }
+}
+
+pub fn mkdir(_path: *const u8) -> isize {
+    unsafe {
+        let mut x: isize;
+        llvm_asm!("li a7, 20"::::"volatile");
+        llvm_asm!("ecall"::::"volatile");
+        llvm_asm!("mv $0, a0":"=r"(x):::"volatile");
+        return x;
+    }
 }
 
 pub fn close(_fd: usize) -> isize {
