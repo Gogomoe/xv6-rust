@@ -2,7 +2,6 @@
 #![no_main]
 
 use core::mem::size_of;
-use core::panic::PanicInfo;
 use core::ptr;
 use core::slice::from_raw_parts;
 use core::str::from_utf8_unchecked;
@@ -11,7 +10,8 @@ use file_system_lib::{Dirent, FileStatus, DIRECTORY_SIZE, TYPE_DIR, TYPE_FILE};
 use user::*;
 
 fn fmtname(path: &str) -> &str {
-    static mut buf:[u8; DIRECTORY_SIZE] = [0u8; DIRECTORY_SIZE];
+    #[allow(non_upper_case_globals)]
+    static mut buf: [u8; DIRECTORY_SIZE] = [0u8; DIRECTORY_SIZE];
     let mut p: *const u8;
     unsafe {
         p = path.as_ptr().add(path.len() - 1);
@@ -97,25 +97,12 @@ fn ls(path: &str) {
 }
 
 #[no_mangle]
-pub extern "C" fn _start(argc: isize, argv: *const *const u8) -> ! {
-    if argc < 2 {
+pub fn main(args: Vec<&str>) {
+    if args.len() == 0 {
         ls(".");
-        exit(0);
-    }
-    unsafe {
-        for (i, &argument) in from_raw_parts(argv, argc as usize).into_iter().enumerate() {
-            if i != 0 {
-                ls(from_utf8_unchecked(from_raw_parts(
-                    argument,
-                    strlen(argument),
-                )));
-            }
+    } else {
+        for i in args {
+            ls(i);
         }
     }
-    exit(0);
-}
-
-#[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    loop {}
 }

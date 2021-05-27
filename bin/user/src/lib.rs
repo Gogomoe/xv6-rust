@@ -10,10 +10,13 @@ extern crate file_system_lib;
 extern crate ufmt;
 
 #[macro_use]
+pub mod _start;
 pub mod print;
 pub mod syscall;
-pub mod umalloc;
 pub mod ulib;
+pub mod umalloc;
 
+pub use alloc::string::String;
+pub use alloc::vec::Vec;
 pub use syscall::*;
 pub use ulib::*;
