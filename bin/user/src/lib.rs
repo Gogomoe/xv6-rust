@@ -7,7 +7,6 @@ extern crate alloc;
 extern crate cstr_core;
 extern crate file_control_lib;
 extern crate file_system_lib;
-extern crate ufmt;
 
 #[macro_use]
 pub mod _start;
