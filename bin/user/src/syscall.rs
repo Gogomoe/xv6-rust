@@ -23,7 +23,7 @@ pub fn exit(_code: isize) -> ! {
     }
 }
 
-pub fn wait(_addr: *const usize) -> isize {
+pub fn wait(_addr: *mut usize) -> isize {
     unsafe {
         let mut x: isize;
         llvm_asm!("li a7, 3"::::"volatile");
@@ -63,7 +63,7 @@ pub fn kill(_pid: usize) -> isize {
     }
 }
 
-fn _exec(_path: *const u8, _argv: usize) -> isize {
+fn _exec(_path: *const u8, _argv: *const [*const u8]) -> isize {
     unsafe {
         let mut x: isize;
         llvm_asm!("li a7, 7"::::"volatile");
@@ -74,7 +74,7 @@ fn _exec(_path: *const u8, _argv: usize) -> isize {
 }
 
 #[inline]
-pub fn exec(_path: &str, _argv: usize) -> isize {
+pub fn exec(_path: &str, _argv: *const [*const u8]) -> isize {
     let _path = CString::new(_path).expect("open syscall: CString::new failed");
     _exec(_path.as_ptr(), _argv)
 }

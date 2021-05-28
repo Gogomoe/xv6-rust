@@ -25,7 +25,7 @@ pub fn main(_args: Vec<&str>) {
             exit(1);
         }
         if pid == 0 {
-            exec("sh", &exec_argv as *const _ as usize);
+            exec("sh", &exec_argv);
             println!("init: exec sh failed");
             exit(1);
         }
@@ -33,7 +33,7 @@ pub fn main(_args: Vec<&str>) {
         loop {
             // this call to wait() returns if the shell exits,
             // or if a parentless process exits.
-            let wpid = wait(0 as *const usize);
+            let wpid = wait(0 as *mut usize);
             if wpid == pid {
                 // the shell exited; restart it.
                 break;

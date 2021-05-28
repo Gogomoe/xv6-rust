@@ -1,87 +1,90 @@
 #![no_std]
 #![no_main]
 
-use core::{mem::size_of, ops::Add};
+use alloc::rc::Rc;
+use core::cell::RefCell;
+use core::mem::size_of;
+use core::slice::from_raw_parts;
+use core::str::from_utf8_unchecked;
 use user::*;
 
-const EXEC: i32 = 1;
-const REDIR: i32 = 2;
-const PIPE: i32 = 3;
-const LIST: i32 = 4;
-const BACK: i32 = 5;
-const MAXARGS: i32 = 10;
+const MAXARGS: usize = 10;
 
-struct cmd {
-    Type: i32,
-    ptr: *mut _,
+enum CMD {
+    ExecCMD(Rc<RefCell<ExecCmd>>),
+    RedirCMD(Rc<RefCell<RedirCMD>>),
+    PipeCMD(Rc<RefCell<PipeCMD>>),
+    ListCMD(Rc<RefCell<ListCMD>>),
+    BackCMD(Rc<RefCell<BackCMD>>),
 }
 
-struct execcmd {
-    Type: i32,
-    argv: [String; MAXARGS as usize],
-    eargv: [String; MAXARGS as usize],
+struct ExecCmd {
+    pub argv: [*const u8; MAXARGS],
+    pub eargv: [*mut u8; MAXARGS],
 }
 
-struct redircmd {
-    Type: i32,
-    cmd: cmd,
-    file: String,
-    efile: String,
-    mode: i32,
-    fd: i32,
+struct RedirCMD {
+    pub cmd: CMD,
+    pub file: *const u8,
+    pub efile: *mut u8,
+    pub mode: usize,
+    pub fd: usize,
 }
 
-struct pipecmd {
-    Type: i32,
-    left: cmd,
-    right: cmd,
+struct PipeCMD {
+    pub left: CMD,
+    pub right: CMD,
 }
 
-struct listcmd {
-    Type: i32,
-    left: cmd,
-    right: cmd,
+struct ListCMD {
+    pub left: CMD,
+    pub right: CMD,
 }
 
-struct backcmd {
-    Type: i32,
-    cmd: cmd,
+struct BackCMD {
+    pub cmd: CMD,
 }
 
-pub unsafe fn runcmd(cmd: cmd) {
-    let mut p = [i32; 2];
-    if cmd == 0 {
-        exit(); //todo
-    }
-    match cmd.Type {
-        EXEC => {
-            let mut ecmd = unsafe { *cmd.ptr };
-            if ecmd.argv[0] == 0 {
-                exit();
+fn runcmd(cmd: &CMD) {
+    let mut p = [0usize; 2];
+
+    match cmd {
+        CMD::ExecCMD(ecmd) => {
+            if ecmd.borrow().argv[0] == 0 as *const u8 {
+                exit(1);
             }
-            exec(ecmd.argv[0], ecmd.argv); //todo
-            println!("exec {} failed\n", ecmd.argv[0]);
+            let name = unsafe {
+                from_utf8_unchecked(from_raw_parts(
+                    ecmd.borrow().argv[0],
+                    strlen(ecmd.borrow().argv[0]),
+                ))
+            };
+            exec(name, &ecmd.borrow().argv);
+            fprintln!(2, "exec {} failed", name);
         }
-        REDIR => {
-            let mut rcmd = cmd as redircmd;
-            close(rcmd.fd); // todo
-            if open(rcmd.file, rcmd.mode) < 0 {
-                fprintf(2, "open %s failed\n", rcmd.file); //todo
-                exit();
+        CMD::RedirCMD(rcmd) => {
+            close(rcmd.borrow().fd);
+            let name = unsafe {
+                from_utf8_unchecked(from_raw_parts(
+                    rcmd.borrow().file,
+                    strlen(rcmd.borrow().file),
+                ))
+            };
+            if open(name, rcmd.borrow().mode) < 0 {
+                fprintln!(2, "open {} failed", name);
+                exit(1);
             }
-            runcmd(runcmd.cmd);
+            runcmd(&rcmd.borrow().cmd);
         }
-        LIST => {
-            let mut lcmd: listcmd = unsafe { *cmd.ptr };
+        CMD::ListCMD(lcmd) => {
             if fork1() == 0 {
-                runcmd(lcmd.left);
+                runcmd(&lcmd.borrow().left);
             }
-            wait();
-            runcmd(lcmd.right);
+            wait(0 as *mut usize);
+            runcmd(&lcmd.borrow().right);
         }
-        PIPE => {
-            let mut pcmd = unsafe { *cmd.ptr };
-            if pipe(p) < 0 {
+        CMD::PipeCMD(pcmd) => {
+            if pipe(&mut p) < 0 {
                 panic!("pipe");
             }
             if fork1() == 0 {
@@ -89,350 +92,322 @@ pub unsafe fn runcmd(cmd: cmd) {
                 dup(p[1]);
                 close(p[0]);
                 close(p[1]);
-                runcmd(pcmd.left);
+                runcmd(&pcmd.borrow().left);
             }
             if fork1() == 0 {
                 close(0);
                 dup(p[0]);
                 close(p[0]);
                 close(p[1]);
-                runcmd(pcmd.right);
+                runcmd(&pcmd.borrow().right);
             }
             close(p[0]);
             close(p[1]);
-            wait();
-            wait();
+            wait(0 as *mut usize);
+            wait(0 as *mut usize);
         }
-        BACK => {
-            let mut bcmd = unsafe { *cmd.ptr };
+        CMD::BackCMD(bcmd) => {
             if fork1() == 0 {
-                runcmd(backcmd.cmd);
+                runcmd(&bcmd.borrow().cmd);
             }
         }
-        _ => {}
     }
-    exit();
+    exit(0);
 }
 
-pub unsafe fn getcmd(buf: String, nbuf: i32) -> i32 {
-    fprintf(2, "$ ");
-    memset(buf, 0, nbuf);
+fn getcmd(buf: &mut [u8], nbuf: usize) -> i32 {
+    fprint!(2, "$ ");
+    buf.fill(0);
     gets(buf, nbuf);
     if buf[0] == 0 {
+        // EOF
         -1
+    } else {
+        0
     }
-    0
 }
 
-unsafe fn main() {
-    let mut buf = String::new();
-    let mut fd: i32;
-    fd = open("console", O_RDWR);
+#[no_mangle]
+pub fn main(_args: Vec<&str>) {
+    let mut buf = [0u8; 100];
+    let mut fd = open("console", OPEN_READ_WRITE);
     while fd >= 0 {
         if fd >= 3 {
-            close(fd);
+            close(fd as usize);
             break;
         }
-        fd = open("console", O_RDWR);
+        fd = open("console", OPEN_READ_WRITE);
     }
 
     // Read and run input commands.
-    while getcmd(buf, sizeof(buf)) >= 0 {
-        if buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ' {
+    while getcmd(&mut buf, size_of::<[u8; 100]>()) >= 0 {
+        if buf[0] == b'c' && buf[1] == b'd' && buf[2] == b' ' {
             // Chdir must be called by the parent, not the child.
-            buf[strlen(buf) - 1] = 0; // chop \n
-            if chdir(buf + 3) < 0 {
-                fprintf(2, "cannot cd %s\n", buf + 3);
+            buf[strlen(buf.as_ptr()) - 1] = 0; // chop \n
+            unsafe {
+                let p = buf.as_ptr().add(3);
+                if chdir(p) < 0 {
+                    fprintln!(
+                        2,
+                        "cannot cd {}",
+                        from_utf8_unchecked(from_raw_parts(p, strlen(p)))
+                    );
+                }
             }
             continue;
         }
         if fork1() == 0 {
-            runcmd(parsecmd(buf));
+            unsafe {
+                runcmd(&parsecmd(buf.as_mut_ptr()));
+            }
         }
-        wait();
+        wait(0 as *mut usize);
     }
-    exit();
 }
 
-pub unsafe fn fork1() -> i32 {
-    let mut pid = fork();
+fn fork1() -> isize {
+    let pid = fork();
     if pid == -1 {
         panic!("fork");
     }
     pid
 }
 
-impl execcmd {
-    fn execcmd() -> cmd {
-        let x = execcmd {
-            Type: EXEC,
-            argv: [" "; MAXARGS],
-            eargv: [" "; MAXARGS],
-        };
-        cmd {
-            Type: EXEC,
-            ptr: &x,
-        }
-    }
+fn execcmd() -> CMD {
+    CMD::ExecCMD(Rc::new(RefCell::new(ExecCmd {
+        argv: [0 as *const u8; MAXARGS],
+        eargv: [0 as *mut u8; MAXARGS],
+    })))
 }
 
-impl redircmd {
-    fn redircmd(subcmd: cmd, file: &str, efile: &str, mode: i32, fd: i32) -> cmd {
-        let x = redircmd {
-            Type: REDIR,
-            cmd: subcmd,
-            file,
-            efile,
-            mode,
-            fd,
-        };
-        cmd {
-            Type: REDIR,
-            ptr: &x,
-        }
-    }
+fn redircmd(subcmd: CMD, file: *const u8, efile: *mut u8, mode: usize, fd: usize) -> CMD {
+    CMD::RedirCMD(Rc::new(RefCell::new(RedirCMD {
+        cmd: subcmd,
+        file,
+        efile,
+        mode,
+        fd,
+    })))
 }
 
-impl pipecmd {
-    fn pipecmd(left: cmd, right: cmd) -> cmd {
-        let x = pipecmd {
-            Type: PIPE,
-            left,
-            right,
-        };
-        cmd {
-            Type: PIPE,
-            ptr: &x,
-        }
-    }
+fn pipecmd(left: CMD, right: CMD) -> CMD {
+    CMD::PipeCMD(Rc::new(RefCell::new(PipeCMD { left, right })))
 }
 
-impl listcmd {
-    fn listcmd(left: cmd, right: cmd) -> cmd {
-        let x = listcmd {
-            Type: LIST,
-            left,
-            right,
-        };
-        cmd {
-            Type: LIST,
-            ptr: &x,
-        }
-    }
+fn listcmd(left: CMD, right: CMD) -> CMD {
+    CMD::ListCMD(Rc::new(RefCell::new(ListCMD { left, right })))
 }
 
-impl backcmd {
-    fn backcmd(subcmd: cmd) -> cmd {
-        let x = backcmd {
-            Type: BACK,
-            cmd: backcmd,
-        };
-        cmd {
-            Type: BACK,
-            ptr: &x,
-        }
-    }
+fn backcmd(subcmd: CMD) -> CMD {
+    CMD::BackCMD(Rc::new(RefCell::new(BackCMD { cmd: subcmd })))
 }
 
-const whitespace: &str = " \t\r\n";
-const symbols: &str = "<|>&;()";
+const WHITESPACE: &str = " \t\r\n";
+const SYMBOLS: &str = "<|>&;()";
 
-pub unsafe fn gettoken(mut ps: &String, es: &String, mut q: &String, mut eq: &String) -> i32 {
-    let mut s = ps.trim();
-    q = s;
-    let mut n: i32 = 0;
-    let mut v: Vec<char> = s.chars().collect();
-    let mut ret: i32 = v[0] as i32;
-    match v[n] {
-        0 => {}
-        '|' => {}
-        ')' => {}
-        '(' => {}
-        ';' => {}
-        '&' => {}
-        '<' => {
-            n = n + 1;
+unsafe fn gettoken(
+    ps: &mut *mut u8,
+    es: *const u8,
+    q: Option<&mut *const u8>,
+    eq: Option<&mut *mut u8>,
+) -> u8 {
+    let mut s: *const u8 = *ps;
+    while s < es && strchr(WHITESPACE, *s) {
+        s = s.add(1);
+    }
+    if let Some(x) = q {
+        *x = s;
+    }
+    let mut ret = *s;
+
+    match *s {
+        0 => (),
+        b'|' | b'(' | b')' | b';' | b'&' | b'<' => {
+            s = s.add(1);
         }
-        '>' => {
-            n = n + 1;
-            if v[n] == '>' {
-                ret = '+' as i32;
-                n = n + 1;
+        b'>' => {
+            s = s.add(1);
+            if *s == b'>' {
+                ret = b'+';
+                s = s.add(1);
             }
         }
         _ => {
-            ret = 'a' as i32;
-            for i in ps.chars() {
-                if !(i == ' ' || i == '\t' || i == '\r' || i == '\n')
-                    && !(i == '<' || i == '|' || i == '>' || i == '&' || i == ';' || i == '(')
-                {
-                    n = n + 1;
-                } else {
-                    break;
-                }
+            ret = b'a';
+            while s < es && !strchr(WHITESPACE, *s) && !strchr(SYMBOLS, *s) {
+                s = s.add(1);
             }
         }
-    };
-    s = String::from(&s[n..]);
-    eq = s;
-    ps = s.trim();
+    }
+    if let Some(x) = eq {
+        *x = s as *mut u8;
+    }
+
+    while s < es && strchr(WHITESPACE, *s) {
+        s = s.add(1);
+    }
+
+    *ps = s as *mut u8;
+
     ret
 }
 
-pub unsafe fn peek(mut ps: &String, mut es: &String, mut toks: &String) -> bool {
-    let mut n = 0;
-    for i in ps.chars() {
-        if i == ' ' || i == '\t' || i == '\r' || i == '\n' {
-            n = n + 1;
-        } else {
-            break;
-        }
+unsafe fn peek(ps: &mut *mut u8, es: *const u8, toks: &str) -> bool {
+    let mut s: *const u8 = *ps;
+
+    while s < es && strchr(WHITESPACE, *s) {
+        s = s.add(1);
     }
-    ps = String::from(&ps[n..]);
-    let mut v: Vec<char> = ps.chars().collect();
-    for i in pss.chars() {
-        for j in toks.chars() {
-            if i == j {
-                true
-            }
-        }
-    }
-    false
+
+    *ps = s as *mut u8;
+
+    *s != 0 && strchr(toks, *s)
 }
 
-pub unsafe fn parsecmd(mut s: &String) -> cmd {
-    let mut es: String = String::from("");
-    let mut t: Vec<String> = s.split(" " as u8).collect();
-    let mut cmd: cmd = parseline(t, es);
-    peek(t, es, "");
+unsafe fn parsecmd(mut s: *mut u8) -> CMD {
+    let es = s.add(strlen(s));
+    let mut cmd = parseline(&mut s, es);
+    peek(&mut s, es, "");
     if s != es {
-        fprintf(2, "leftovers: %s\n", s);
-        panic("syntax");
+        fprintln!(
+            2,
+            "leftovers: {}",
+            from_utf8_unchecked(from_raw_parts(s, strlen(s)))
+        );
+        panic!("syntax");
     }
-    nulterminate(&cmd);
+    nulterminate(&mut cmd);
     cmd
 }
 
-pub unsafe fn parseline(mut ps: &String, mut es: &String) -> cmd {
-    let mut cmd: cmd = parsepipe(ps, es);
+unsafe fn parseline(ps: &mut *mut u8, es: *const u8) -> CMD {
+    let mut cmd = parsepipe(ps, es);
     while peek(ps, es, "&") {
-        gettoken(ps, es, "", "");
+        gettoken(ps, es, None, None);
         cmd = backcmd(cmd);
     }
     if peek(ps, es, ";") {
-        gettoken(ps, es, "", "");
+        gettoken(ps, es, None, None);
         cmd = listcmd(cmd, parseline(ps, es));
     }
     cmd
 }
 
-pub unsafe fn parsepipe(mut ps: &String, mut es: &String) -> cmd {
-    let mut cmd: cmd = parseexec(ps, es);
+unsafe fn parsepipe(ps: &mut *mut u8, es: *const u8) -> CMD {
+    let mut cmd = parseexec(ps, es);
     if peek(ps, es, "|") {
-        gettoken(ps, es, "", "");
+        gettoken(ps, es, None, None);
         cmd = pipecmd(cmd, parsepipe(ps, es));
     }
-    cmd;
+    cmd
 }
 
-pub unsafe fn parseredirs(mut cmd: cmd, mut ps: &String, mut es: &String) -> cmd {
-    let mut tok = 0;
-    let mut q = String::new();
-    let mut eq = String::new();
+unsafe fn parseredirs(mut cmd: CMD, ps: &mut *mut u8, es: *const u8) -> CMD {
+    let mut q = 0 as *const u8;
+    let mut eq = 0 as *mut u8;
+
     while peek(ps, es, "<>") {
-        tok = gettoken(ps, es, "", "");
-        if gettoken(ps, es, q, eq) != 'a' as i32 {
-            panic("missing file for redirection");
+        let tok = gettoken(ps, es, None, None);
+        if gettoken(ps, es, Some(&mut q), Some(&mut eq)) != b'a' {
+            panic!("missing file for redirection");
         }
-        match tok as char {
-            '<' => {
-                cmd = redircmd(cmd, q, eq, O_RDONLY, 0);
+        match tok {
+            b'<' => {
+                cmd = redircmd(cmd, q, eq, OPEN_READ_ONLY, 0);
             }
-            '>' => {
-                cmd = redircmd(cmd, q, eq, O_WRONLY | O_CREATE, 1);
+            b'>' => {
+                cmd = redircmd(cmd, q, eq, OPEN_WRITE_ONLY | OPEN_CREATE | OPEN_TRUNC, 1);
             }
-            '+' => {
-                cmd = redircmd(cmd, q, eq, O_WRONLY | O_CREATE, 1);
+            b'+' => {
+                cmd = redircmd(cmd, q, eq, OPEN_WRITE_ONLY | OPEN_CREATE, 1);
             }
-            _ => {}
+            _ => (),
         }
     }
-    CMD
+    cmd
 }
 
-pub unsafe fn parseblock(mut ps: &String, mut es: &String) -> cmd {
+unsafe fn parseblock(ps: &mut *mut u8, es: *const u8) -> CMD {
     if !peek(ps, es, "(") {
-        panic("parseblock");
+        panic!("parseblock");
     }
-    gettoken(ps, es, "", "");
+    gettoken(ps, es, None, None);
     let mut cmd = parseline(ps, es);
     if !peek(ps, es, ")") {
-        panic("syntax - missing )");
+        panic!("syntax - missing )");
     }
-    gettoken(ps, es, "", "");
+    gettoken(ps, es, None, None);
     cmd = parseredirs(cmd, ps, es);
     cmd
 }
 
-pub unsafe fn parseexec(mut s: &String, mut es: &String) -> cmd {
+unsafe fn parseexec(ps: &mut *mut u8, es: *const u8) -> CMD {
+    let mut q = 0 as *const u8;
+    let mut eq = 0 as *mut u8;
+
     if peek(ps, es, "(") {
-        parseblock(ps, es)
+        parseblock(ps, es);
     }
+
     let mut ret = execcmd();
-    let mut cmd = ret.ptr;
+    let cmd: Rc<RefCell<ExecCmd>>;
+    if let CMD::ExecCMD(x) = &ret {
+        cmd = x.clone();
+    } else {
+        panic!();
+    }
+
     let mut argc = 0;
     ret = parseredirs(ret, ps, es);
     while !peek(ps, es, "|)&;") {
-        tok = gettoken(ps, es, &q, &eq);
+        let tok = gettoken(ps, es, Some(&mut q), Some(&mut eq));
         if tok == 0 {
             break;
         }
-        if tok != 'a' {
-            panic("syntax");
+        if tok != b'a' {
+            panic!("syntax");
         }
-        cmd.argv[argc] = q;
-        cmd.eargv[argc] = eq;
-        argc = argc + 1;
+        cmd.borrow_mut().argv[argc] = q;
+        cmd.borrow_mut().eargv[argc] = eq;
+        argc += 1;
         if argc >= MAXARGS {
-            panic("too many args");
+            panic!("too many args");
         }
         ret = parseredirs(ret, ps, es);
     }
-    cmd.argv[argc] = 0;
-    cmd.eargv[argc] = 0;
+    cmd.borrow_mut().argv[argc] = 0 as *const u8;
+    cmd.borrow_mut().eargv[argc] = 0 as *mut u8;
+
     ret
 }
 
-pub unsafe fn nulterminate(cmd: &cmd) -> &cmd {
-    match cmd.Type {
-        EXEC => {
-            let mut ecmd: execcmd = unsafe { *cmd.ptr };
+fn nulterminate(cmd: &mut CMD) {
+    match cmd {
+        CMD::ExecCMD(ecmd) => {
             for i in 0..MAXARGS {
-                if ecmd.argv[i] != "" {
-                    *ecmd.eargv[i] = 0;
+                if ecmd.borrow().argv[i] != 0 as *const u8 {
+                    unsafe {
+                        *ecmd.borrow_mut().eargv[i] = 0;
+                    }
                 }
             }
         }
-        REDIR => {
-            let mut rcmd: redircmd = unsafe { *cmd.ptr };
-            nulterminate(&rcmd.cmd);
-            *rcmd.efile = 0;
+        CMD::RedirCMD(rcmd) => {
+            nulterminate(&mut rcmd.borrow_mut().cmd);
+            unsafe {
+                *rcmd.borrow_mut().efile = 0;
+            }
         }
-        PIPE => {
-            let mut pcmd: pipecmd = unsafe { *cmd.ptr };
-            nulterminate(&pcmd.left);
-            nulterminate(&pcmd.right);
+        CMD::PipeCMD(pcmd) => {
+            nulterminate(&mut pcmd.borrow_mut().left);
+            nulterminate(&mut pcmd.borrow_mut().right);
         }
-        LIST => {
-            let mut lcmd: listcmd = unsafe { *cmd.ptr };
-            nulterminate(&lcmd.left);
-            nulterminate(&lcmd.right);
+        CMD::ListCMD(lcmd) => {
+            nulterminate(&mut lcmd.borrow_mut().left);
+            nulterminate(&mut lcmd.borrow_mut().right);
         }
-        BACK => {
-            let mut bcmd: backcmd = unsafe { *cmd.ptr };
-            nulterminate(&bcmd.cmd);
+        CMD::BackCMD(bcmd) => {
+            nulterminate(&mut bcmd.borrow_mut().cmd);
         }
-        _ => {}
     }
-    cmd
 }

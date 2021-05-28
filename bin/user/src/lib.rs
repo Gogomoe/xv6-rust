@@ -3,10 +3,10 @@
 #![feature(llvm_asm)]
 #![feature(alloc_error_handler)]
 
-extern crate alloc;
-extern crate cstr_core;
-extern crate file_control_lib;
-extern crate file_system_lib;
+pub extern crate alloc;
+pub extern crate cstr_core;
+pub extern crate file_control_lib;
+pub extern crate file_system_lib;
 
 #[macro_use]
 pub mod _start;

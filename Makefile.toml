@@ -10,7 +10,7 @@ script = """
 """
 
 [env]
-USER_PROGRAM = "init ls"
+USER_PROGRAM = "init ls sh"
 
 [tasks.build_user]
 script = """
@@ -28,8 +28,7 @@ args = ["build", "--package", "mkfs"]
 [tasks.build_img]
 dependencies = ["build_mkfs"]
 script = """
-    cp user/sh target/riscv64gc-unknown-none-elf/debug/
-    target/debug/mkfs fs.img ${USER_PROGRAM} sh
+    target/debug/mkfs fs.img ${USER_PROGRAM}
 """
 
 [tasks.build_all]

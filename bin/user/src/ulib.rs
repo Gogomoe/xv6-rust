@@ -2,6 +2,10 @@ use crate::*;
 use core::slice::from_raw_parts;
 use core::str::from_utf8_unchecked;
 
+pub fn strchr(s: &str, c: u8) -> bool {
+    return s.contains(c as char);
+}
+
 pub fn gets(buf: &mut [u8], max: usize) {
     let mut i = 0;
     let mut c = 0u8;
