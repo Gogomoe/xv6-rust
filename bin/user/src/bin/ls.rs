@@ -27,12 +27,12 @@ fn fmtname(path: &str) -> &str {
             from_utf8_unchecked(from_raw_parts(p, length))
         } else {
             ptr::copy(p, buf.as_mut_ptr(), length);
-            // let mut p: *mut u8 = buf.as_mut_ptr().add(length);
-            // while p < buf.as_mut_ptr().add(buf.len()) {
-            //     *p = b' ';
-            //     p = p.add(1);
-            // }
-            from_utf8_unchecked(from_raw_parts(buf.as_ptr(), length))
+            let mut p: *mut u8 = buf.as_mut_ptr().add(length);
+            while p < buf.as_mut_ptr().add(buf.len()) {
+                *p = b' ';
+                p = p.add(1);
+            }
+            from_utf8_unchecked(from_raw_parts(buf.as_ptr(), buf.len()))
         }
     }
 }
@@ -82,7 +82,7 @@ fn ls(path: &str) {
                         } else {
                             println!(
                                 "{} {} {} {}",
-                                fmtname(unsafe { from_utf8_unchecked(&buf) }),
+                                fmtname(unsafe { from_utf8_unchecked(&buf[..strlen(buf.as_ptr())]) }),
                                 st.types,
                                 st.ino,
                                 st.size
