@@ -2,6 +2,7 @@
 #![no_main]
 
 use alloc::rc::Rc;
+use alloc::boxed::Box;
 use core::cell::RefCell;
 use core::mem::size_of;
 use core::slice::from_raw_parts;
@@ -12,10 +13,10 @@ const MAXARGS: usize = 10;
 
 enum CMD {
     ExecCMD(Rc<RefCell<ExecCmd>>),
-    RedirCMD(Rc<RefCell<RedirCMD>>),
-    PipeCMD(Rc<RefCell<PipeCMD>>),
-    ListCMD(Rc<RefCell<ListCMD>>),
-    BackCMD(Rc<RefCell<BackCMD>>),
+    RedirCMD(Box<RedirCMD>),
+    PipeCMD(Box<PipeCMD>),
+    ListCMD(Box<ListCMD>),
+    BackCMD(Box<BackCMD>),
 }
 
 struct ExecCmd {
@@ -63,25 +64,25 @@ fn runcmd(cmd: &CMD) {
             fprintln!(1, "exec {} failed", name);
         }
         CMD::RedirCMD(rcmd) => {
-            close(rcmd.borrow().fd);
+            close(rcmd.fd);
             let name = unsafe {
                 from_utf8_unchecked(from_raw_parts(
-                    rcmd.borrow().file,
-                    strlen(rcmd.borrow().file),
+                    rcmd.file,
+                    strlen(rcmd.file),
                 ))
             };
-            if open(name, rcmd.borrow().mode) < 0 {
+            if open(name, rcmd.mode) < 0 {
                 fprintln!(1, "open {} failed", name);
                 exit(1);
             }
-            runcmd(&rcmd.borrow().cmd);
+            runcmd(&rcmd.cmd);
         }
         CMD::ListCMD(lcmd) => {
             if fork1() == 0 {
-                runcmd(&lcmd.borrow().left);
+                runcmd(&lcmd.left);
             }
             wait(0 as *mut usize);
-            runcmd(&lcmd.borrow().right);
+            runcmd(&lcmd.right);
         }
         CMD::PipeCMD(pcmd) => {
             if pipe(&mut p) < 0 {
@@ -92,14 +93,14 @@ fn runcmd(cmd: &CMD) {
                 dup(p[1]);
                 close(p[0]);
                 close(p[1]);
-                runcmd(&pcmd.borrow().left);
+                runcmd(&pcmd.left);
             }
             if fork1() == 0 {
                 close(0);
                 dup(p[0]);
                 close(p[0]);
                 close(p[1]);
-                runcmd(&pcmd.borrow().right);
+                runcmd(&pcmd.right);
             }
             close(p[0]);
             close(p[1]);
@@ -108,7 +109,7 @@ fn runcmd(cmd: &CMD) {
         }
         CMD::BackCMD(bcmd) => {
             if fork1() == 0 {
-                runcmd(&bcmd.borrow().cmd);
+                runcmd(&bcmd.cmd);
             }
         }
     }
@@ -181,25 +182,25 @@ fn execcmd() -> CMD {
 }
 
 fn redircmd(subcmd: CMD, file: *const u8, efile: *mut u8, mode: usize, fd: usize) -> CMD {
-    CMD::RedirCMD(Rc::new(RefCell::new(RedirCMD {
+    CMD::RedirCMD(Box::new(RedirCMD {
         cmd: subcmd,
         file,
         efile,
         mode,
         fd,
-    })))
+    }))
 }
 
 fn pipecmd(left: CMD, right: CMD) -> CMD {
-    CMD::PipeCMD(Rc::new(RefCell::new(PipeCMD { left, right })))
+    CMD::PipeCMD(Box::new(PipeCMD { left, right }))
 }
 
 fn listcmd(left: CMD, right: CMD) -> CMD {
-    CMD::ListCMD(Rc::new(RefCell::new(ListCMD { left, right })))
+    CMD::ListCMD(Box::new(ListCMD { left, right }))
 }
 
 fn backcmd(subcmd: CMD) -> CMD {
-    CMD::BackCMD(Rc::new(RefCell::new(BackCMD { cmd: subcmd })))
+    CMD::BackCMD(Box::new(BackCMD { cmd: subcmd }))
 }
 
 const WHITESPACE: &str = " \t\r\n";
@@ -393,21 +394,21 @@ fn nulterminate(cmd: &mut CMD) {
             }
         }
         CMD::RedirCMD(rcmd) => {
-            nulterminate(&mut rcmd.borrow_mut().cmd);
+            nulterminate(&mut rcmd.cmd);
             unsafe {
-                *rcmd.borrow_mut().efile = 0;
+                *rcmd.efile = 0;
             }
         }
         CMD::PipeCMD(pcmd) => {
-            nulterminate(&mut pcmd.borrow_mut().left);
-            nulterminate(&mut pcmd.borrow_mut().right);
+            nulterminate(&mut pcmd.left);
+            nulterminate(&mut pcmd.right);
         }
         CMD::ListCMD(lcmd) => {
-            nulterminate(&mut lcmd.borrow_mut().left);
-            nulterminate(&mut lcmd.borrow_mut().right);
+            nulterminate(&mut lcmd.left);
+            nulterminate(&mut lcmd.right);
         }
         CMD::BackCMD(bcmd) => {
-            nulterminate(&mut bcmd.borrow_mut().cmd);
+            nulterminate(&mut bcmd.cmd);
         }
     }
 }
