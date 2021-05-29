@@ -25,29 +25,6 @@ pub fn _print(fd: usize, args: fmt::Arguments<'_>) {
 }
 
 #[macro_export]
-macro_rules! print {
-	($fmt:expr) => ({
-		fprint!(1, $fmt);
-	});
-	($fmt:expr, $($args:tt)+) => ({
-		fprint!(1, $fmt, $($args)+);
-	});
-}
-
-#[macro_export]
-macro_rules! println {
-	() => ({
-		print!("\n");
-	});
-	($fmt:expr) => ({
-		print!(concat!($fmt, "\n"));
-	});
-	($fmt:expr, $($args:tt)+) => ({
-		print!(concat!($fmt, "\n"), $($args)+);
-	});
-}
-
-#[macro_export]
 macro_rules! fprint {
 	($fd:tt, $fmt:expr) => ({
 		if $fd == 2 {
@@ -75,5 +52,51 @@ macro_rules! fprintln {
 	});
 	($fd:tt, $fmt:expr, $($args:tt)+) => ({
 		fprint!($fd, concat!($fmt, "\n"), $($args)+);
+	});
+}
+
+#[macro_export]
+macro_rules! print {
+	($fmt:expr) => ({
+		fprint!(1, $fmt);
+	});
+	($fmt:expr, $($args:tt)+) => ({
+		fprint!(1, $fmt, $($args)+);
+	});
+}
+
+#[macro_export]
+macro_rules! println {
+	() => ({
+		print!("\n");
+	});
+	($fmt:expr) => ({
+		print!(concat!($fmt, "\n"));
+	});
+	($fmt:expr, $($args:tt)+) => ({
+		print!(concat!($fmt, "\n"), $($args)+);
+	});
+}
+
+#[macro_export]
+macro_rules! eprint {
+	($fmt:expr) => ({
+		fprint!(2, $fmt);
+	});
+	($fmt:expr, $($args:tt)+) => ({
+		fprint!(2, $fmt, $($args)+);
+	});
+}
+
+#[macro_export]
+macro_rules! eprintln {
+	() => ({
+		eprint!("\n");
+	});
+	($fmt:expr) => ({
+		eprint!(concat!($fmt, "\n"));
+	});
+	($fmt:expr, $($args:tt)+) => ({
+		eprint!(concat!($fmt, "\n"), $($args)+);
 	});
 }
