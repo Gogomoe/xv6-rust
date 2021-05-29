@@ -150,10 +150,9 @@ fn main() {
                 inum: xshort(inum as u16),
                 name: {
                     let mut name = [0u8; DIRECTORY_SIZE];
-                    let tmp = CString::new(&ARGS[i] as &str).unwrap();
-                    let ttmp = tmp.as_bytes_with_nul();
-                    let (left, _) = name.split_at_mut(ttmp.len());
-                    left.clone_from_slice(&ttmp);
+                    let tmp = CString::new(&ARGS[i] as &str).unwrap().into_bytes_with_nul();
+                    let (left, _) = name.split_at_mut(tmp.len());
+                    left.clone_from_slice(&tmp);
                     name
                 },
             };
@@ -260,7 +259,7 @@ fn iappend<T>(inum: u32, xp: &mut T, mut n: usize) {
     let mut buf = [0u8; BLOCK_SIZE];
     let mut p = xp as *const T;
     let mut off = xint(din.size) as usize;
-    println!("append inum {} at off {} sz {}", inum, off, n);
+    // println!("append inum {} at off {} sz {}", inum, off, n);
     while n > 0 {
         let x;
         let fbn = off / BLOCK_SIZE;
