@@ -36,7 +36,7 @@ pub fn wait(_addr: *mut usize) -> isize {
 pub fn pipe(_fdarray: *mut [usize; 2]) -> isize {
     unsafe {
         let mut x: isize;
-        llvm_asm!("li a7, 6"::::"volatile");
+        llvm_asm!("li a7, 4"::::"volatile");
         llvm_asm!("ecall"::::"volatile");
         llvm_asm!("mv $0, a0":"=r"(x):::"volatile");
         return x;
