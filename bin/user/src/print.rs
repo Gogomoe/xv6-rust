@@ -100,3 +100,9 @@ macro_rules! eprintln {
 		eprint!(concat!($fmt, "\n"), $($args)+);
 	});
 }
+
+#[panic_handler]
+fn panic(info: &core::panic::PanicInfo) -> ! {
+	eprintln!("{}", info);
+    loop {}
+}

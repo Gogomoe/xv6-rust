@@ -1,5 +1,4 @@
 use crate::*;
-use core::panic::PanicInfo;
 use core::slice::from_raw_parts;
 use core::str::from_utf8_unchecked;
 
@@ -19,9 +18,4 @@ pub extern "C" fn _start(argc: usize, argv: *const *const u8) -> ! {
         );
     }
     exit(0);
-}
-
-#[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    loop {}
 }
