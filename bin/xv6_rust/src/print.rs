@@ -51,6 +51,26 @@ macro_rules! println {
 }
 
 #[macro_export]
+macro_rules! eprint {
+	($($args:tt)+) => ({
+		$crate::print::_print(format_args!($($args)+));
+	});
+}
+
+#[macro_export]
+macro_rules! eprintln {
+	() => ({
+		eprint!("\n")
+	});
+	($fmt:expr) => ({
+		eprint!(concat!("\x1b[31m", $fmt, "\n\x1b[0m"))
+	});
+	($fmt:expr, $($args:tt)+) => ({
+		eprint!(concat!("\x1b[31m", $fmt, "\n\x1b[0m"), $($args)+)
+	});
+}
+
+#[macro_export]
 macro_rules! assert {
     ($cond:expr) => {
         if (!$cond) {
@@ -61,7 +81,7 @@ macro_rules! assert {
 
 #[panic_handler]
 fn panic(info: &core::panic::PanicInfo) -> ! {
-    println!("{}", info);
+    eprintln!("{}", info);
     PANICKED.store(true, Ordering::Relaxed); // freeze uart output from other CPUs
     loop {}
 }
