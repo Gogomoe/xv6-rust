@@ -69,7 +69,9 @@ impl FileTable {
         }
 
         let types = file.data().types;
+        #[allow(unused_variables)]
         let pipe = file.data().pipe;
+        #[allow(unused_variables)]
         let writable = file.data().writable;
         let ip = file.data().ip;
 

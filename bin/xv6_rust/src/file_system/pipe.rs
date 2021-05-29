@@ -2,6 +2,7 @@ use crate::spin_lock::SpinLock;
 
 pub const PIPE_SIZE: usize = 512;
 
+#[allow(dead_code)]
 pub struct Pipe {
     lock: SpinLock<()>,
     data: [u8; PIPE_SIZE],

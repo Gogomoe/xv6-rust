@@ -33,6 +33,7 @@ impl Buffer {
 
 pub struct BufferGuard<'a> {
     index: usize,
+    #[allow(dead_code)]
     dev: u32,
     block_no: u32,
     data: SleepLockGuard<'a, BufferData>,
@@ -43,10 +44,12 @@ impl BufferGuard<'_> {
         self.data.as_ptr() as *const _ as *mut [u8; BLOCK_SIZE]
     }
 
+    #[allow(dead_code)]
     pub fn index(&self) -> usize {
         self.index
     }
 
+    #[allow(dead_code)]
     pub fn dev(&self) -> u32 {
         self.dev
     }

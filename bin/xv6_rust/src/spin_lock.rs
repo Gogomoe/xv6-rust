@@ -42,7 +42,7 @@ impl<T: ?Sized> SpinLock<T> {
         if self.holding() {
             panic!("spinlock {} acquire", self.name);
         }
-        while self.lock.compare_and_swap(false, true, Ordering::Acquire) {}
+        while let Err(true) = self.lock.compare_exchange(false, true, Ordering::Acquire, Ordering::Acquire) {}
         fence(Ordering::SeqCst);
         self.cpuid.set(cpu_id() as isize);
     }
@@ -88,6 +88,7 @@ impl<'a, T: ?Sized> Drop for SpinLockGuard<'a, T> {
 }
 
 impl<'a, T> SpinLockGuard<'a, T> {
+    #[allow(dead_code)]
     pub unsafe fn holding(&self) -> bool {
         self.lock.holding()
     }
