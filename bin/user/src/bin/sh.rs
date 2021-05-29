@@ -60,7 +60,7 @@ fn runcmd(cmd: &CMD) {
                 ))
             };
             exec(name, &ecmd.borrow().argv);
-            fprintln!(2, "exec {} failed", name);
+            fprintln!(1, "exec {} failed", name);
         }
         CMD::RedirCMD(rcmd) => {
             close(rcmd.borrow().fd);
@@ -71,7 +71,7 @@ fn runcmd(cmd: &CMD) {
                 ))
             };
             if open(name, rcmd.borrow().mode) < 0 {
-                fprintln!(2, "open {} failed", name);
+                fprintln!(1, "open {} failed", name);
                 exit(1);
             }
             runcmd(&rcmd.borrow().cmd);
@@ -116,7 +116,7 @@ fn runcmd(cmd: &CMD) {
 }
 
 fn getcmd(buf: &mut [u8], nbuf: usize) -> i32 {
-    fprint!(2, "$ ");
+    fprint!(1, "$ ");
     buf.fill(0);
     gets(buf, nbuf);
     if buf[0] == 0 {
@@ -148,7 +148,7 @@ pub fn main(_args: Vec<&str>) {
                 let p = buf.as_ptr().add(3);
                 if chdir(p) < 0 {
                     fprintln!(
-                        2,
+                        1,
                         "cannot cd {}",
                         from_utf8_unchecked(from_raw_parts(p, strlen(p)))
                     );
@@ -270,7 +270,7 @@ unsafe fn parsecmd(mut s: *mut u8) -> CMD {
     peek(&mut s, es, "");
     if s != es {
         fprintln!(
-            2,
+            1,
             "leftovers: {}",
             from_utf8_unchecked(from_raw_parts(s, strlen(s)))
         );

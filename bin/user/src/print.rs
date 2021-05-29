@@ -26,40 +26,54 @@ pub fn _print(fd: usize, args: fmt::Arguments<'_>) {
 
 #[macro_export]
 macro_rules! print {
-	($($args:tt)+) => ({
-		$crate::print::_print(1, format_args!($($args)+));
+	($fmt:expr) => ({
+		fprint!(1, $fmt);
+	});
+	($fmt:expr, $($args:tt)+) => ({
+		fprint!(1, $fmt, $($args)+);
 	});
 }
 
 #[macro_export]
 macro_rules! println {
 	() => ({
-		print!("\n")
+		print!("\n");
 	});
 	($fmt:expr) => ({
-		print!(concat!($fmt, "\n"))
+		print!(concat!($fmt, "\n"));
 	});
 	($fmt:expr, $($args:tt)+) => ({
-		print!(concat!($fmt, "\n"), $($args)+)
+		print!(concat!($fmt, "\n"), $($args)+);
 	});
 }
 
 #[macro_export]
 macro_rules! fprint {
-	($fd:tt, $($args:tt)+) => ({
-		$crate::print::_print($fd, format_args!($($args)+));
+	($fd:tt, $fmt:expr) => ({
+		if $fd == 2 {
+			$crate::print::_print($fd, format_args!(concat!("\x1b[31m", $fmt, "\x1b[0m")));
+		} else {
+			$crate::print::_print($fd, format_args!($fmt));
+		}
+	});
+	($fd:tt, $fmt:expr, $($args:tt)+) => ({
+		if $fd == 2 {
+			$crate::print::_print($fd, format_args!(concat!("\x1b[31m", $fmt, "\x1b[0m"), $($args)+));
+		} else {
+			$crate::print::_print($fd, format_args!($fmt, $($args)+));
+		}
 	});
 }
 
 #[macro_export]
 macro_rules! fprintln {
 	($fd:tt) => ({
-		fprint!($fd, "\n")
+		fprint!($fd, "\n");
 	});
 	($fd:tt, $fmt:expr) => ({
-		fprint!($fd, concat!($fmt, "\n"))
+		fprint!($fd, concat!($fmt, "\n"));
 	});
 	($fd:tt, $fmt:expr, $($args:tt)+) => ({
-		fprint!($fd, concat!($fmt, "\n"), $($args)+)
+		fprint!($fd, concat!($fmt, "\n"), $($args)+);
 	});
 }
