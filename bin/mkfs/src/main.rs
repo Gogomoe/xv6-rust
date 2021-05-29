@@ -2,11 +2,12 @@ extern crate file_system_lib;
 extern crate param_lib;
 
 use file_system_lib::{
-    iblock, Dirent, INodeDisk, SuperBlock, BLOCK_SIZE, DIRECT_COUNT, INDIRECT_COUNT,
-    DIRECTORY_SIZE, FSMAGIC, IPB, MAX_FILE_COUNT, ROOT_INO, TYPE_DIR, TYPE_FILE,
+    iblock, Dirent, INodeDisk, SuperBlock, BLOCK_SIZE, DIRECTORY_SIZE, DIRECT_COUNT, FSMAGIC,
+    INDIRECT_COUNT, IPB, MAX_FILE_COUNT, ROOT_INO, TYPE_DIR, TYPE_FILE,
 };
 use lazy_static::lazy_static;
 use param_lib::{FILE_SYSTEM_SIZE, LOG_SIZE};
+use std::collections::HashMap;
 use std::env;
 use std::ffi::CString;
 use std::fs::{File, OpenOptions};
@@ -111,52 +112,48 @@ fn main() {
     }
     wsect(1, &buf);
 
-    let rootino = ialloc(TYPE_DIR);
-    assert_eq!(rootino, ROOT_INO);
+    let mut root_tree = DirectoryTree::new();
+    assert_eq!(root_tree.ino, ROOT_INO);
 
-    let mut de = Dirent {
-        inum: xshort(rootino as u16),
-        name: {
-            let mut name = [0u8; DIRECTORY_SIZE];
-            let tmp = CString::new(".").unwrap();
-            let ttmp = tmp.as_bytes_with_nul();
-            let (left, _) = name.split_at_mut(ttmp.len());
-            left.clone_from_slice(&ttmp);
-            name
-        },
-    };
-    iappend(rootino, &mut de, mem::size_of::<Dirent>());
+    let mut de = new_dirent_with_inum_name(root_tree.ino, ".");
+    iappend(root_tree.ino, &mut de, mem::size_of::<Dirent>());
 
-    de = Dirent {
-        inum: xshort(rootino as u16),
-        name: {
-            let mut name = [0u8; DIRECTORY_SIZE];
-            let tmp = CString::new("..").unwrap();
-            let ttmp = tmp.as_bytes_with_nul();
-            let (left, _) = name.split_at_mut(ttmp.len());
-            left.clone_from_slice(&ttmp);
-            name
-        },
-    };
-    iappend(rootino, &mut de, mem::size_of::<Dirent>());
+    de = new_dirent_with_inum_name(root_tree.ino, "..");
+    iappend(root_tree.ino, &mut de, mem::size_of::<Dirent>());
 
     for i in 2..ARGS.len() {
         let mut filename = String::from("target/riscv64gc-unknown-none-elf/debug/");
-        filename.push_str(&ARGS[i]);
-        if let Ok(mut fd) = File::open(filename) {
+        let mut args_iter = ARGS[i].split(':');
+        let shortname = args_iter.next().unwrap();
+        filename.push_str(shortname);
+        if let Ok(mut fd) = File::open(&filename) {
+            let mut father_tree = &mut root_tree;
+
+            if let Some(x) = args_iter.next() {
+                args_iter = x.split('/');
+                while let Some(x) = args_iter.next() {
+                    if x != "" {
+                        let dir_name = String::from(x);
+                        father_tree = father_tree.subdirectory.entry(dir_name).or_insert({
+                            let dir = DirectoryTree::new();
+
+                            de = new_dirent_with_inum_name(dir.ino, x);
+                            iappend(father_tree.ino, &mut de, mem::size_of::<Dirent>());
+
+                            de = new_dirent_with_inum_name(dir.ino, ".");
+                            iappend(dir.ino, &mut de, mem::size_of::<Dirent>());
+                            de = new_dirent_with_inum_name(dir.ino, "..");
+                            iappend(dir.ino, &mut de, mem::size_of::<Dirent>());
+                            dir
+                        });
+                    }
+                }
+            }
+
             let inum = ialloc(TYPE_FILE);
 
-            de = Dirent {
-                inum: xshort(inum as u16),
-                name: {
-                    let mut name = [0u8; DIRECTORY_SIZE];
-                    let tmp = CString::new(&ARGS[i] as &str).unwrap().into_bytes_with_nul();
-                    let (left, _) = name.split_at_mut(tmp.len());
-                    left.clone_from_slice(&tmp);
-                    name
-                },
-            };
-            iappend(rootino, &mut de, mem::size_of::<Dirent>());
+            de = new_dirent_with_inum_name(inum, shortname);
+            iappend(father_tree.ino, &mut de, mem::size_of::<Dirent>());
 
             while let Ok(i) = fd.read(&mut buf) {
                 if i == 0 {
@@ -171,11 +168,11 @@ fn main() {
     }
 
     let mut din = INodeDisk::new();
-    rinode(rootino, &mut din);
+    rinode(root_tree.ino, &mut din);
     let mut off = xint(din.size);
     off = ((off / BLOCK_SIZE as u32) + 1) * BLOCK_SIZE as u32;
     din.size = xint(off);
-    winode(rootino, &din);
+    winode(root_tree.ino, &din);
 
     balloc(freeblock.load(Ordering::Relaxed) as usize);
 
@@ -300,4 +297,31 @@ fn iappend<T>(inum: u32, xp: &mut T, mut n: usize) {
     }
     din.size = xint(off as u32);
     winode(inum, &din);
+}
+
+struct DirectoryTree {
+    ino: u32,
+    subdirectory: HashMap<String, DirectoryTree>,
+}
+
+impl DirectoryTree {
+    fn new() -> DirectoryTree {
+        DirectoryTree {
+            ino: ialloc(TYPE_DIR),
+            subdirectory: HashMap::new(),
+        }
+    }
+}
+
+pub fn new_dirent_with_inum_name(i: u32, str: &str) -> Dirent {
+    Dirent {
+        inum: xshort(i as u16),
+        name: {
+            let mut name = [0u8; DIRECTORY_SIZE];
+            let tmp = CString::new(str).unwrap().into_bytes_with_nul();
+            let (left, _) = name.split_at_mut(tmp.len());
+            left.clone_from_slice(&tmp);
+            name
+        },
+    }
 }

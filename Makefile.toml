@@ -9,26 +9,33 @@ script = """
     riscv64-unknown-elf-objdump -S target/riscv64gc-unknown-none-elf/debug/xv6_rust > kernel.S
 """
 
-[env]
-USER_PROGRAM = "init ls sh"
-
 [tasks.build_user]
+script_runner = "@duckscript"
 script = """
-    for i in ${USER_PROGRAM}
-    do
-        cargo rustc --package user --target riscv64gc-unknown-none-elf --bin ${i} -- -C opt-level=1 -C link-arg=-Tbin/user/src/ld/user.ld -C link-arg=-N
-        riscv64-unknown-elf-strip target/riscv64gc-unknown-none-elf/debug/${i}
-    done
+    arr = exec ls -m bin/user/src/bin/
+    arr = replace ${arr.stdout} .rs " "
+    arr = split ${arr} ,
+    for i in ${arr}
+        i = trim ${i}
+        exec --fail-on-error cargo rustc --package user --target riscv64gc-unknown-none-elf --bin ${i} -- -C opt-level=1 -C link-arg=-Tbin/user/src/ld/user.ld -C link-arg=-N
+        exec --fail-on-error riscv64-unknown-elf-strip target/riscv64gc-unknown-none-elf/debug/${i}
+    end
 """
 
 [tasks.build_mkfs]
 command = "cargo"
 args = ["build", "--package", "mkfs"]
 
+[env]
+USER_FILES = ["init", "ls", "sh", "test.txt:/test/", "cat"]
+
 [tasks.build_img]
 dependencies = ["build_mkfs"]
+script_runner = "@duckscript"
 script = """
-    target/debug/mkfs fs.img ${USER_PROGRAM}
+    USER_FILES = replace ${USER_FILES} ; " "
+    exec --fail-on-error cp test.txt target/riscv64gc-unknown-none-elf/debug/
+    exec --fail-on-error target/debug/mkfs fs.img %{USER_FILES}
 """
 
 [tasks.build_all]
