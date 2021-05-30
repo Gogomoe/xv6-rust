@@ -273,3 +273,38 @@ pub fn sys_mknod() -> u64 {
 
     return 0;
 }
+
+pub fn sys_chdir() -> u64 {
+    let log = unsafe { &mut LOG };
+
+    let proc = CPU_MANAGER.my_proc().data();
+    let path = read_arg_string(0);
+
+    if path.is_none() {
+        return u64::max_value();
+    }
+    let path = path.unwrap();
+
+    log.begin_op();
+
+    let ip = find_inode(&path);
+    if ip.is_none() {
+        log.end_op();
+        return u64::max_value();
+    }
+    let ip = ip.unwrap();
+    let guard = ip.lock();
+
+    if ip.data().types != TYPE_DIR {
+        ip.unlock_put(guard);
+        log.end_op();
+        return u64::max_value();
+    }
+
+    ip.unlock(guard);
+    ICACHE.put(proc.current_dir.unwrap());
+    log.end_op();
+    proc.current_dir = Some(ip);
+
+    return 0;
+}
