@@ -47,7 +47,8 @@ struct BackCMD {
 }
 
 fn runcmd(cmd: &CMD) {
-    let mut p = [0usize; 2];
+    // avoid a bug
+    format_args!("{:?}", [0u16;0]);
 
     match cmd {
         CMD::ExecCMD(ecmd) => {
@@ -85,6 +86,7 @@ fn runcmd(cmd: &CMD) {
             runcmd(&lcmd.right);
         }
         CMD::PipeCMD(pcmd) => {
+            let mut p = [0usize; 2];
             if pipe(&mut p) < 0 {
                 panic!("pipe");
             }
