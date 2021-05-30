@@ -27,7 +27,7 @@ command = "cargo"
 args = ["build", "--package", "mkfs"]
 
 [env]
-USER_FILES = ["init", "ls", "sh", "test.txt:/test/", "cat"]
+USER_FILES = ["init", "ls", "sh", "test.txt:/test1/test2/", "test.txt:/test1/", "cat"]
 
 [tasks.build_img]
 dependencies = ["build_mkfs"]

@@ -134,18 +134,23 @@ fn main() {
                 while let Some(x) = args_iter.next() {
                     if x != "" {
                         let dir_name = String::from(x);
-                        father_tree = father_tree.subdirectory.entry(dir_name).or_insert({
-                            let dir = DirectoryTree::new();
 
-                            de = new_dirent_with_inum_name(dir.ino, x);
-                            iappend(father_tree.ino, &mut de, mem::size_of::<Dirent>());
+                        if father_tree.subdirectory.contains_key(&dir_name) {
+                            father_tree = father_tree.subdirectory.get_mut(&dir_name).unwrap();
+                        } else {
+                            father_tree = father_tree.subdirectory.entry(dir_name).or_insert({
+                                let dir = DirectoryTree::new();
 
-                            de = new_dirent_with_inum_name(dir.ino, ".");
-                            iappend(dir.ino, &mut de, mem::size_of::<Dirent>());
-                            de = new_dirent_with_inum_name(dir.ino, "..");
-                            iappend(dir.ino, &mut de, mem::size_of::<Dirent>());
-                            dir
-                        });
+                                de = new_dirent_with_inum_name(dir.ino, x);
+                                iappend(father_tree.ino, &mut de, mem::size_of::<Dirent>());
+                                de = new_dirent_with_inum_name(dir.ino, ".");
+                                iappend(dir.ino, &mut de, mem::size_of::<Dirent>());
+                                de = new_dirent_with_inum_name(father_tree.ino, "..");
+                                iappend(dir.ino, &mut de, mem::size_of::<Dirent>());
+
+                                dir
+                            });
+                        }
                     }
                 }
             }
