@@ -27,14 +27,14 @@ command = "cargo"
 args = ["build", "--package", "mkfs"]
 
 [env]
-USER_FILES = ["init", "ls", "sh", "test.txt:/test1/test2/", "test.txt:/test1/", "cat"]
+USER_FILES = ["README.md:/md/", "init", "ls", "sh", "cat"]
 
 [tasks.build_img]
 dependencies = ["build_mkfs"]
 script_runner = "@duckscript"
 script = """
     USER_FILES = replace ${USER_FILES} ; " "
-    exec --fail-on-error cp test.txt target/riscv64gc-unknown-none-elf/debug/
+    exec --fail-on-error cp README.md target/riscv64gc-unknown-none-elf/debug/
     exec --fail-on-error target/debug/mkfs fs.img %{USER_FILES}
 """
 

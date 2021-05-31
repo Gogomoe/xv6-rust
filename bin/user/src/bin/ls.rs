@@ -6,7 +6,7 @@ use core::ptr;
 use core::slice::from_raw_parts;
 use core::str::from_utf8_unchecked;
 
-use file_system_lib::{Dirent, FileStatus, DIRECTORY_SIZE, TYPE_DIR, TYPE_FILE};
+use file_system_lib::{Dirent, FileStatus, DIRECTORY_SIZE, TYPE_DEVICE, TYPE_DIR, TYPE_FILE};
 use user::*;
 
 fn fmtname(path: &str) -> &str {
@@ -80,13 +80,36 @@ fn ls(path: &str) {
                         if stat(buf.as_ptr(), &mut st) < 0 {
                             println!("ls: cannot stat {}", unsafe { from_utf8_unchecked(&buf) });
                         } else {
-                            println!(
-                                "{} {} {} {}",
-                                fmtname(unsafe { from_utf8_unchecked(&buf[..strlen(buf.as_ptr())]) }),
-                                st.types,
-                                st.ino,
-                                st.size
-                            );
+                            match st.types {
+                                TYPE_DIR => println!(
+                                    "\x1b[34m{}\x1b[0m {} {} {}",
+                                    fmtname(unsafe {
+                                        from_utf8_unchecked(&buf[..strlen(buf.as_ptr())])
+                                    }),
+                                    st.types,
+                                    st.ino,
+                                    st.size
+                                ),
+                                TYPE_FILE => println!(
+                                    "{} {} {} {}",
+                                    fmtname(unsafe {
+                                        from_utf8_unchecked(&buf[..strlen(buf.as_ptr())])
+                                    }),
+                                    st.types,
+                                    st.ino,
+                                    st.size
+                                ),
+                                TYPE_DEVICE => println!(
+                                    "\x1b[33m{}\x1b[0m {} {} {}",
+                                    fmtname(unsafe {
+                                        from_utf8_unchecked(&buf[..strlen(buf.as_ptr())])
+                                    }),
+                                    st.types,
+                                    st.ino,
+                                    st.size
+                                ),
+                                _ => unreachable!(),
+                            }
                         }
                     }
                 }
