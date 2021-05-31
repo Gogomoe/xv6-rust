@@ -153,7 +153,7 @@ fn create(path: &String, types: u16, major: u16, minor: u16) -> Option<(&'static
         dp.update();
         // No ip->nlink++ for ".": avoid cyclic ref count.
         if !ip.dir_link(&String::from("."), ip.data().inum) ||
-            !ip.dir_link(&String::from(".."), ip.data().inum) {
+            !ip.dir_link(&String::from(".."), dp.data().inum) {
             panic!("create dots");
         }
     }
@@ -244,6 +244,32 @@ pub fn sys_open() -> u64 {
     log.end_op();
 
     return fd as u64;
+}
+
+pub fn sys_mkdir() -> u64 {
+    let log = unsafe { &mut LOG };
+
+    let path = read_arg_string(0);
+
+    if path.is_none() {
+        return u64::max_value();
+    }
+    let path = path.unwrap();
+
+    log.begin_op();
+
+    let result = create(&path, TYPE_DIR, 0, 0);
+    if result.is_none() {
+        log.end_op();
+        return u64::max_value();
+    }
+
+    let (ip, guard) = result.unwrap();
+    ip.unlock_put(guard);
+
+    log.end_op();
+
+    return 0;
 }
 
 pub fn sys_mknod() -> u64 {
