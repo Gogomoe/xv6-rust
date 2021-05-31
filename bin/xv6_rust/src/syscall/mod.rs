@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 use crate::memory::copy_in_string;
 use crate::process::CPU_MANAGER;
 use crate::syscall::exec::sys_exec;
-use crate::syscall::file::{sys_close, sys_dup, sys_mknod, sys_open, sys_chdir, sys_read, sys_write, sys_fstat};
+use crate::syscall::file::{sys_close, sys_dup, sys_mknod, sys_open, sys_chdir, sys_read, sys_write, sys_fstat, sys_mkdir};
 use crate::syscall::process::{sys_exit, sys_fork, sys_sbrk, sys_wait};
 
 pub mod exec;
@@ -32,6 +32,7 @@ static SYSCALL_SBRK: SystemCall = SystemCall { name: "sbrk", id: 12, func: sys_s
 static SYSCALL_OPEN: SystemCall = SystemCall { name: "open", id: 15, func: sys_open };
 static SYSCALL_WRITE: SystemCall = SystemCall { name: "write", id: 16, func: sys_write };
 static SYSCALL_MKNOD: SystemCall = SystemCall { name: "mknod", id: 17, func: sys_mknod };
+static SYSCALL_MKDIR: SystemCall = SystemCall { name: "mkdir", id: 20, func: sys_mkdir };
 static SYSCALL_CLOSE: SystemCall = SystemCall { name: "close", id: 21, func: sys_close };
 
 lazy_static! {
@@ -53,6 +54,7 @@ lazy_static! {
         insert(SYSCALL_OPEN.clone());
         insert(SYSCALL_WRITE.clone());
         insert(SYSCALL_MKNOD.clone());
+        insert(SYSCALL_MKDIR.clone());
         insert(SYSCALL_CLOSE.clone());
         map
     };

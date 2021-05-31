@@ -211,7 +211,7 @@ pub fn link(_old: *const u8, _new: *const u8) -> isize {
     }
 }
 
-pub fn mkdir(_path: *const u8) -> isize {
+fn _mkdir(_path: *const u8) -> isize {
     unsafe {
         let mut x: isize;
         llvm_asm!("li a7, 20"::::"volatile");
@@ -219,6 +219,12 @@ pub fn mkdir(_path: *const u8) -> isize {
         llvm_asm!("mv $0, a0":"=r"(x):::"volatile");
         return x;
     }
+}
+
+#[inline]
+pub fn mkdir(_path: &str) -> isize {
+    let _path = CString::new(_path).expect("open syscall: CString::new failed");
+    _mkdir(_path.as_ptr())
 }
 
 pub fn close(_fd: usize) -> isize {
