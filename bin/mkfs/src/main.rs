@@ -22,33 +22,28 @@ use std::sync::{
 };
 
 const NINODES: u32 = 200;
-#[allow(non_upper_case_globals)]
-const nbitmap: u32 = FILE_SYSTEM_SIZE / (BLOCK_SIZE as u32 * 8) + 1;
-#[allow(non_upper_case_globals)]
-const ninodeblocks: u32 = NINODES / IPB + 1;
-#[allow(non_upper_case_globals)]
-const nlog: u32 = LOG_SIZE as u32;
+const NBITMAP: u32 = FILE_SYSTEM_SIZE / (BLOCK_SIZE as u32 * 8) + 1;
+const NINODEBLOCKS: u32 = NINODES / IPB + 1;
+const NLOG: u32 = LOG_SIZE as u32;
 
-#[allow(non_upper_case_globals)]
-const nmeta: u32 = 2 + nlog + ninodeblocks + nbitmap;
-#[allow(non_upper_case_globals)]
-const nblocks: u32 = FILE_SYSTEM_SIZE - nmeta;
+const NMETA: u32 = 2 + NLOG + NINODEBLOCKS + NBITMAP;
+const NBLOCKS: u32 = FILE_SYSTEM_SIZE - NMETA;
 
 #[allow(non_upper_case_globals)]
 static freeinode: AtomicU32 = AtomicU32::new(1);
 #[allow(non_upper_case_globals)]
-static freeblock: AtomicU32 = AtomicU32::new(nmeta);
+static freeblock: AtomicU32 = AtomicU32::new(NMETA);
 
 lazy_static! {
     static ref SUPERBLOCK: Mutex<SuperBlock> = Mutex::new(SuperBlock {
         magic: FSMAGIC,
         size: xint(FILE_SYSTEM_SIZE),
-        blocks_number: xint(nblocks),
+        blocks_number: xint(NBLOCKS),
         inode_number: xint(NINODES),
-        log_number: xint(nlog),
+        log_number: xint(NLOG),
         log_start: xint(2),
-        inode_start: xint(2 + nlog),
-        block_map_start: xint(2 + nlog + ninodeblocks)
+        inode_start: xint(2 + NLOG),
+        block_map_start: xint(2 + NLOG + NINODEBLOCKS)
     });
     static ref ARGS: Vec<String> = {
         if env::args().len() < 2 {
@@ -96,7 +91,7 @@ fn xint(x: u32) -> u32 {
 
 fn main() {
     println!("nmeta {} (boot, super, log blocks {} inode blocks {}, bitmap blocks {}) blocks {} total {}",
-            nmeta, nlog, ninodeblocks, nbitmap, nblocks, FILE_SYSTEM_SIZE);
+            NMETA, NLOG, NINODEBLOCKS, NBITMAP, NBLOCKS, FILE_SYSTEM_SIZE);
     let zeroes = [0u8; BLOCK_SIZE];
     for i in 0..FILE_SYSTEM_SIZE {
         wsect(i, &zeroes);

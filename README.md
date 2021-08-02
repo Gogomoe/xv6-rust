@@ -24,7 +24,7 @@ xv6 是 MIT 开发的教学操作系统，广泛地应用在如 6.S081 等操作
 在终端中执行：
 
 ```shell
-sudo apt-get install git gdb-multiarch qemu-system-misc binutils-riscv64-unknown-elf build-essential pkg-config libssl-dev
+sudo apt-get install git gdb-multiarch qemu-system-misc binutils-riscv64-unknown-elf
 ```
 
 如果使用 Ubuntu 18，不需要安装 qemu-system-misc，需要另行安装 [QEMU4.2](https://www.qemu.org/download/#source) 以上。
@@ -33,10 +33,12 @@ sudo apt-get install git gdb-multiarch qemu-system-misc binutils-riscv64-unknown
 
 终端运行 `curl https://sh.rustup.rs -sSf | sh` 安装 rustup，需要修改 toolchain 为 nightly。
 
-在终端中执行：
+然后安装cargo-make：
 
 ```shell
 source $HOME/.cargo/env
+
+sudo apt-get install build-essential pkg-config libssl-dev
 rustup target add riscv64gc-unknown-none-elf
 cargo install --force cargo-make
 ```
