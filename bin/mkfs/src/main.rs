@@ -92,12 +92,11 @@ fn xint(x: u32) -> u32 {
 fn main() {
     println!("nmeta {} (boot, super, log blocks {} inode blocks {}, bitmap blocks {}) blocks {} total {}",
             NMETA, NLOG, NINODEBLOCKS, NBITMAP, NBLOCKS, FILE_SYSTEM_SIZE);
-    let zeroes = [0u8; BLOCK_SIZE];
+    let mut buf = [0u8; BLOCK_SIZE];
     for i in 0..FILE_SYSTEM_SIZE {
-        wsect(i, &zeroes);
+        wsect(i, &buf);
     }
 
-    let mut buf = [0u8; BLOCK_SIZE];
     unsafe {
         ptr::copy(
             &*SUPERBLOCK.lock().unwrap() as *const SuperBlock,
